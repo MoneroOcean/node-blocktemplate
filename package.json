@@ -1,6 +1,6 @@
 {
   "name": "node-blocktemplate",
-  "version": "15.8.19",
+  "version": "15.8.20",
   "description": "Native Node.js addon for multichain block templates, block blobs, and merged-mining helpers used by pool backends",
   "main": "index.js",
   "gypfile": true,

@@ -7,6 +7,7 @@ const { parseBigInt } = require('./bigint');
 const diff1 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
 const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 const BASE58_INDEXES = new Map(Array.from(BASE58_ALPHABET, (char, index) => [char, index]));
+const MAX_RECOVERABLE_TRANSACTION_TAIL_BYTES = 64;
 
 function reverseBuffer(buff) {
   let reversed = Buffer.alloc(buff.length);
@@ -157,6 +158,8 @@ function createParsedTransaction(version, ins, outs, payload, rawWithWitness, ra
     ins: ins,
     outs: outs,
     payload: payload,
+    _rawWithWitness: rawWithWitness,
+    _rawNoWitness: rawNoWitness,
     hasWitnesses: function() {
       return hasWitnesses(this);
     },
@@ -167,9 +170,15 @@ function createParsedTransaction(version, ins, outs, payload, rawWithWitness, ra
       return this.__toBuffer(undefined, undefined, allowWitness).length;
     },
     __toBuffer: function(_buffer, _initialOffset, allowWitness) {
-      return allowWitness && this.hasWitnesses() ? rawWithWitness : rawNoWitness;
+      return allowWitness && this.hasWitnesses() ? this._rawWithWitness : this._rawNoWitness;
     }
   };
+}
+
+function isSupportedRtmTransactionVersion(version) {
+  const txVersion = version & 0xffff;
+  const txType = version >>> 16;
+  return txVersion >= 1 && txVersion <= 3 && (txVersion >= 3 || txType === 0);
 }
 
 function readTransaction(buffer, offset, readPayload) {
@@ -180,7 +189,7 @@ function readTransaction(buffer, offset, readPayload) {
   const txType = version >>> 16;
   offset = versionSlice.offset;
 
-  if (txVersion < 1 || txVersion > 3) throw new Error('Unsupported RTM transaction version');
+  if (!isSupportedRtmTransactionVersion(version)) throw new Error('Unsupported RTM transaction version');
 
   let hasWitnessMarker = false;
   if (offset + 2 <= buffer.length &&
@@ -258,6 +267,38 @@ function readTransaction(buffer, offset, readPayload) {
   };
 }
 
+function canReadTransactionAt(buffer, offset, readPayload) {
+  if (offset < 0 || offset + 4 > buffer.length) return false;
+  if (!isSupportedRtmTransactionVersion(buffer.readInt32LE(offset))) return false;
+  try {
+    const parsed = readTransaction(buffer, offset, readPayload);
+    return parsed.offset > offset && parsed.offset <= buffer.length;
+  } catch (err) {
+    return false;
+  }
+}
+
+function findRecoverableTransactionOffset(buffer, offset, readPayload) {
+  if (canReadTransactionAt(buffer, offset, readPayload)) return offset;
+  const end = Math.min(buffer.length - 4, offset + MAX_RECOVERABLE_TRANSACTION_TAIL_BYTES);
+  for (let nextOffset = offset + 1; nextOffset <= end; nextOffset++) {
+    if (canReadTransactionAt(buffer, nextOffset, readPayload)) return nextOffset;
+  }
+  return offset;
+}
+
+function extendTransactionRaw(transaction, tail) {
+  if (!tail || tail.length === 0) return transaction;
+  return createParsedTransaction(
+    transaction.version,
+    transaction.ins,
+    transaction.outs,
+    transaction.payload,
+    Buffer.concat([transaction._rawWithWitness, tail]),
+    Buffer.concat([transaction._rawNoWitness, tail])
+  );
+}
+
 function validateRtmTransaction(buffer) {
   const parsed = readTransaction(buffer, 0, true);
   if (parsed.offset !== buffer.length) {
@@ -267,6 +308,8 @@ function validateRtmTransaction(buffer) {
 }
 
 module.exports.readTransaction = readTransaction;
+module.exports.findRecoverableTransactionOffset = findRecoverableTransactionOffset;
+module.exports.extendTransactionRaw = extendTransactionRaw;
 
 // "serialized CScript" formatting as defined here:
 // https://github.com/bitcoin/bips/blob/master/bip-0034.mediawiki#specification

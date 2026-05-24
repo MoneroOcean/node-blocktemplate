@@ -153,6 +153,18 @@ const rtmSpecialTxHex = "0300020001f189c058fc197826cec441160f8395be58f6934661c2f
 const rtmQuorumCommitmentTxHex = "03000600000000000000fd0401" + "aa".repeat(260);
 const rtmNormalTxHex = "0200000001" + "11".repeat(32) + "000000000151feffffff01e803000000000000015100000000";
 
+function buildEmptyRtmSpecialTx(type, payload = "") {
+  const txVersion = Buffer.alloc(4);
+  txVersion.writeInt32LE(3 | (type << 16));
+  const payloadLength = Buffer.from([payload.length / 2]);
+  return Buffer.concat([
+    txVersion,
+    Buffer.from("000000000000", "hex"),
+    payloadLength,
+    Buffer.from(payload, "hex")
+  ]).toString("hex");
+}
+
 function buildRtmTemplate(transactions, overrides = {}) {
   return rtm.RtmBlockTemplate(Object.assign({
     previousblockhash: "00".repeat(32),
@@ -175,6 +187,17 @@ test("readTransaction handles RTM quorum commitment payload boundaries", () => {
   assert.equal(parsed.transaction.version, 0x00060003);
   assert.equal(parsed.transaction.payload.length, 260);
   assert.equal(parsed.transaction.__toBuffer().toString("hex"), rtmQuorumCommitmentTxHex);
+});
+
+test("readTransaction accepts known RTM special transaction types", () => {
+  for (const type of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+    const txHex = buildEmptyRtmSpecialTx(type);
+    const parsed = rtm.readTransaction(Buffer.from(txHex, "hex"), 0, true);
+
+    assert.equal(parsed.offset, txHex.length / 2);
+    assert.equal(parsed.transaction.version, 3 | (type << 16));
+    assert.equal(parsed.transaction.payload.length, 0);
+  }
 });
 
 test("RtmBlockTemplate includes special transaction payloads", () => {
@@ -245,6 +268,28 @@ test("convertRtmBlob handles RTM quorum commitments before later transactions", 
   } finally {
     Date.now = originalDateNow;
   }
+});
+
+test("convertRtmBlob recovers RTM special transaction tail before next transaction", () => {
+  const txType6WithPayload329 = Buffer.concat([
+    Buffer.from("03000600000000000000fd4901", "hex"),
+    Buffer.alloc(329, 0)
+  ]);
+  const nextType6 = Buffer.from(buildEmptyRtmSpecialTx(6), "hex");
+  const blob = Buffer.concat([
+    Buffer.alloc(80, 0),
+    Buffer.from("02", "hex"),
+    txType6WithPayload329,
+    Buffer.alloc(8, 0),
+    nextType6
+  ]);
+
+  const actual = blocktemplateJs.convertRtmBlob(blob).toString("hex");
+
+  assert.strictEqual(
+    actual,
+    "000000000000000000000000000000000000000000000000000000000000000000000000c3768d8beb2782fc90da561181d0c236f9620cf3714bb4f9c3e379516bb435f6000000000000000000000000"
+  );
 });
 
 test("convertRtmBlob handles RTM special coinbase without daemon payload", () => {

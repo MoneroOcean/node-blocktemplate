@@ -185,6 +185,13 @@ function update_merkle_root_hash(offset, payload, blob_in, blob_out, transaction
       const parsed = rtm.readTransaction(blob_in, offset, true);
       tx = parsed.transaction;
       offset = parsed.offset;
+      if (i + 1 < nTransactions) {
+        const nextOffset = rtm.findRecoverableTransactionOffset(blob_in, offset, true);
+        if (nextOffset !== offset) {
+          tx = rtm.extendTransactionRaw(tx, blob_in.slice(offset, nextOffset));
+          offset = nextOffset;
+        }
+      }
     } else {
       tx = bitcoin.Transaction.fromBuffer(blob_in.slice(offset), true, false);
       offset += tx.byteLength();
