@@ -46,6 +46,7 @@ inline void SetExport(Isolate* isolate, Local<Object> target, const char* name,
 
 // cryptonote::append_mm_tag_to_extra writes byte with TX_EXTRA_MERGE_MINING_TAG (1 here) and VARINT DEPTH (2 here)
 const size_t MM_NONCE_SIZE = 1 + 2 + sizeof(crypto::hash);
+const size_t MAX_TX_HASHES_FOR_PARENT_BLOCK = 16384;
 const size_t MAX_BLOCK_ID_TX_HASHES = 65535;
 
 blobdata uint64be_to_blob(uint64_t num) {
@@ -240,6 +241,7 @@ void construct_block_blob(const FunctionCallbackInfo<Value>& info) { // (parentB
 
     b.nonce = nonce;
     if (blob_type == BLOB_TYPE_FORKNOTE2) {
+        if (b.tx_hashes.size() > MAX_TX_HASHES_FOR_PARENT_BLOCK) return ThrowError(isolate, "Block template has too many transaction hashes.");
         block parent_block;
         b.parent_block.nonce = nonce;
         if (!construct_parent_block(b, parent_block)) return ThrowError(isolate, "Failed to construct parent block");
