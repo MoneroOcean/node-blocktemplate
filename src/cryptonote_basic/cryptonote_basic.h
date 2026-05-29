@@ -1201,6 +1201,8 @@ namespace cryptonote
 
         ar.tag("blockchain_branch");
         ar.begin_array();
+        if (!typename Archive<W>::is_saving() && mm_tag.depth > ar.remaining_bytes() / sizeof(crypto::hash))
+          return false;
         PREPARE_CUSTOM_VECTOR_SERIALIZATION(mm_tag.depth, const_cast<bytecoin_block&>(b).blockchain_branch);
         if (mm_tag.depth != b.blockchain_branch.size())
           return false;
