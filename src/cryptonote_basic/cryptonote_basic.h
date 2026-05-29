@@ -1199,6 +1199,10 @@ namespace cryptonote
         if (!get_mm_tag_from_extra(b.miner_tx.extra, mm_tag))
           return false;
 
+        static const size_t MAX_MERGE_MINING_DEPTH = 128;
+        if (mm_tag.depth > MAX_MERGE_MINING_DEPTH)
+          return false;
+
         ar.tag("blockchain_branch");
         ar.begin_array();
         PREPARE_CUSTOM_VECTOR_SERIALIZATION(mm_tag.depth, const_cast<bytecoin_block&>(b).blockchain_branch);
