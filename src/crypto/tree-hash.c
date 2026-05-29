@@ -2,7 +2,7 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <alloca.h>
+#include <stdlib.h>
 #include <assert.h>
 #include <stddef.h>
 #include <string.h>
@@ -23,7 +23,15 @@ void tree_hash(const char (*hashes)[HASH_SIZE], size_t count, char *root_hash) {
       cnt |= cnt >> i;
     }
     cnt &= ~(cnt >> 1);
-    ints = alloca(cnt * HASH_SIZE);
+    if (cnt > SIZE_MAX / HASH_SIZE) {
+      memset(root_hash, 0, HASH_SIZE);
+      return;
+    }
+    ints = malloc(cnt * HASH_SIZE);
+    if (!ints) {
+      memset(root_hash, 0, HASH_SIZE);
+      return;
+    }
     memcpy(ints, hashes, (2 * cnt - count) * HASH_SIZE);
     for (i = 2 * cnt - count, j = 2 * cnt - count; j < cnt; i += 2, ++j) {
       cn_fast_hash(hashes[i], 2 * HASH_SIZE, ints[j]);
@@ -36,6 +44,7 @@ void tree_hash(const char (*hashes)[HASH_SIZE], size_t count, char *root_hash) {
       }
     }
     cn_fast_hash(ints[0], 2 * HASH_SIZE, root_hash);
+    free(ints);
   }
 }
 
@@ -72,7 +81,15 @@ void tree_branch(const char (*hashes)[HASH_SIZE], size_t count, char (*branch)[H
   }
   assert(cnt == 1ULL << depth);
   assert(depth == tree_depth(count));
-  ints = alloca((cnt - 1) * HASH_SIZE);
+  if (cnt - 1 > SIZE_MAX / HASH_SIZE) {
+    memset(branch, 0, tree_depth(count) * HASH_SIZE);
+    return;
+  }
+  ints = malloc((cnt - 1) * HASH_SIZE);
+  if (!ints) {
+    memset(branch, 0, tree_depth(count) * HASH_SIZE);
+    return;
+  }
   memcpy(ints, hashes + 1, (2 * cnt - count - 1) * HASH_SIZE);
   for (i = 2 * cnt - count, j = 2 * cnt - count - 1; j < cnt - 1; i += 2, ++j)
   {
@@ -90,6 +107,7 @@ void tree_branch(const char (*hashes)[HASH_SIZE], size_t count, char (*branch)[H
       cn_fast_hash(ints[i], 2 * HASH_SIZE, ints[j]);
     }
   }
+  free(ints);
 }
 
 void tree_hash_from_branch(const char (*branch)[HASH_SIZE], size_t depth, const char* leaf, const void* path, char* root_hash)
