@@ -387,7 +387,12 @@ function sha256(buffer) {
   return crypto.createHash('sha256').update(buffer).digest();
 }
 
+const MAX_BASE58_ADDRESS_LENGTH = 128;
+const MAX_BECH32_ADDRESS_LENGTH = 128;
+
 function decodeBase58Check(value) {
+  if (value.length > MAX_BASE58_ADDRESS_LENGTH) throw new Error('Base58 address too long');
+
   let num = 0n;
   for (const char of value) {
     const index = BASE58_INDEXES.get(char);
@@ -412,6 +417,7 @@ function decodeBase58Check(value) {
 }
 
 function addressToScript(addr) {
+  if (addr.length > MAX_BECH32_ADDRESS_LENGTH) throw new Error('Invalid address ' + addr);
   let decoded;
   try {
     decoded = decodeBase58Check(addr);
