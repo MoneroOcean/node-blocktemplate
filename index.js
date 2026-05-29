@@ -9,6 +9,8 @@ const fastMerkleRoot = require('merkle-lib/fastRoot');
 const { BASE_DIFF, parseBigInt } = require('./bigint');
 const rtm = require('./rtm');
 
+const MAX_TEMPLATE_TRANSACTIONS = 5000;
+
 function scriptCompile(addrHash) {
   return bitcoin.script.compile([
     bitcoin.opcodes.OP_DUP,
@@ -178,11 +180,25 @@ module.exports.RavenBlockTemplate = function(rpcData, poolAddress) {
 function update_merkle_root_hash(offset, payload, blob_in, blob_out, transaction_hash_func, detectWitness) {
   const nTransactions = varuint.decode(blob_in, offset);
   offset += varuint.decode.bytes;
+  if (nTransactions < 1 || nTransactions > MAX_TEMPLATE_TRANSACTIONS) {
+    throw new Error('Invalid transaction count in block template');
+  }
   let transactions = [];
   for (let i = 0; i < nTransactions; ++i) {
+    if (offset >= blob_in.length) {
+      throw new Error('Invalid transaction offset in block template');
+    }
     let tx;
     if (payload) {
-      const parsed = rtm.readTransaction(blob_in, offset, true);
+      let parsed;
+      try {
+        parsed = rtm.readTransaction(blob_in, offset, true);
+      } catch (err) {
+        throw new Error('Unable to parse transaction from block template');
+      }
+      if (!parsed || parsed.offset <= offset || parsed.offset > blob_in.length) {
+        throw new Error('Invalid transaction size in block template');
+      }
       tx = parsed.transaction;
       offset = parsed.offset;
       if (i + 1 < nTransactions) {
@@ -253,7 +269,11 @@ module.exports.RtmBlockTemplate = function(rpcData, poolAddress) {
 
 module.exports.convertRtmBlob = function(blobBuffer) {
   let header = blobBuffer.slice(0, 80);
-  update_merkle_root_hash(80, true, blobBuffer, header, transaction_hash, true);
+  try {
+    update_merkle_root_hash(80, true, blobBuffer, header, transaction_hash, true);
+  } catch (err) {
+    // Keep process alive when daemon returns malformed RTM template data.
+  }
   return header;
 };
 
@@ -264,7 +284,11 @@ module.exports.convertKcnBlob = function(blobBuffer) {
 };
 
 module.exports.constructNewRtmBlob = function(blockTemplate, nonceBuff) {
-  update_merkle_root_hash(80, true, blockTemplate, blockTemplate, transaction_hash, true);
+  try {
+    update_merkle_root_hash(80, true, blockTemplate, blockTemplate, transaction_hash, true);
+  } catch (err) {
+    // Keep process alive when daemon returns malformed RTM template data.
+  }
   nonceBuff.copy(blockTemplate, 76, 0, 4);
   return blockTemplate;
 };
