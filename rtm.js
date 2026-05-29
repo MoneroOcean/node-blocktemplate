@@ -50,7 +50,12 @@ function packUInt32BE(num) {
   return buff;
 }
 
+function isValidSatoshisAmount(amount) {
+  return Number.isSafeInteger(amount) && amount >= 0;
+}
+
 function packInt64LE(num){
+  if (!isValidSatoshisAmount(num)) throw new Error('Invalid transaction amount');
   let buff = Buffer.alloc(8);
   buff.writeUInt32LE(num % Math.pow(2, 32), 0);
   buff.writeUInt32LE(Math.floor(num / Math.pow(2, 32)), 4);
@@ -426,6 +431,10 @@ function addressToScript(addr) {
 }
 
 function createTransactionOutput(amount, payee, rewardToPool, reward, txOutputBuffers, payeeScript) {
+  if (!isValidSatoshisAmount(amount) || amount > rewardToPool || amount > reward) {
+    throw new Error('Invalid payout amount');
+  }
+
   const payeeReward = amount;
   if (!payeeScript) payeeScript = addressToScript(payee);
   txOutputBuffers.push(Buffer.concat([
@@ -436,12 +445,20 @@ function createTransactionOutput(amount, payee, rewardToPool, reward, txOutputBu
   return { reward: reward - amount, rewardToPool: rewardToPool - amount };
 }
 
+
+function validateCoinbaseDevReward(coinbaseDevReward, rewardToPool) {
+  if (!coinbaseDevReward || typeof coinbaseDevReward !== 'object') return false;
+  if (!isValidSatoshisAmount(coinbaseDevReward.value) || coinbaseDevReward.value > rewardToPool) return false;
+  if (typeof coinbaseDevReward.scriptpubkey !== 'string' || !/^(?:[0-9a-fA-F]{2})+$/.test(coinbaseDevReward.scriptpubkey)) return false;
+  return true;
+}
+
 function generateTransactionOutputs(rpcData, poolAddress) {
   let reward       = rpcData.coinbasevalue + (rpcData.coinbasedevreward ? rpcData.coinbasedevreward.value : 0);
   let rewardToPool = reward;
   let txOutputBuffers = [];
 
-  if (rpcData.coinbasedevreward) {
+  if (validateCoinbaseDevReward(rpcData.coinbasedevreward, rewardToPool)) {
     const rewards = createTransactionOutput(rpcData.coinbasedevreward.value, null, rewardToPool, reward, txOutputBuffers, Buffer.from(rpcData.coinbasedevreward.scriptpubkey, 'hex'));
     reward        = rewards.reward;
     rewardToPool  = rewards.rewardToPool;
