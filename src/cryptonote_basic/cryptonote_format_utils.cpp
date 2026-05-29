@@ -15,6 +15,11 @@ using namespace epee;
 
 namespace cryptonote
 {
+  namespace
+  {
+    // Keep merkle tree hashing scratch allocations bounded in tree_hash().
+    const size_t MAX_BLOCK_TX_HASHES = 0x10000;
+  }
   //---------------------------------------------------------------
   void get_transaction_prefix_hash(const transaction_prefix& tx, crypto::hash& h)
   {
@@ -276,6 +281,9 @@ namespace cryptonote
   //---------------------------------------------------------------
   bool get_block_hashing_blob(const block& b, blobdata& blob)
   {
+    if (b.tx_hashes.size() > MAX_BLOCK_TX_HASHES)
+      return false;
+
     if (b.blob_type == BLOB_TYPE_CRYPTONOTE_XTNC || b.blob_type == BLOB_TYPE_CRYPTONOTE_CUCKOO || b.blob_type == BLOB_TYPE_CRYPTONOTE_TUBE || b.blob_type == BLOB_TYPE_CRYPTONOTE_XTA) {
       blob = t_serializable_object_to_blob(b.major_version);
       blob.append(reinterpret_cast<const char*>(&b.minor_version), sizeof(b.minor_version));

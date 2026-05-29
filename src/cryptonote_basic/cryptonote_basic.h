@@ -1132,6 +1132,18 @@ namespace cryptonote
     std::vector<crypto::hash> blockchain_branch;
   };
 
+  template <typename Archive>
+  bool has_enough_blockchain_branch_bytes(Archive&, size_t, const boost::mpl::bool_<true>& /*is_saving*/)
+  {
+    return true;
+  }
+
+  template <typename Archive>
+  bool has_enough_blockchain_branch_bytes(Archive& ar, size_t depth, const boost::mpl::bool_<false>& /*is_saving*/)
+  {
+    return depth <= ar.remaining_bytes() / sizeof(crypto::hash);
+  }
+
   struct serializable_bytecoin_block
   {
     bytecoin_block& b;
@@ -1201,6 +1213,8 @@ namespace cryptonote
 
         ar.tag("blockchain_branch");
         ar.begin_array();
+        if (!has_enough_blockchain_branch_bytes(ar, mm_tag.depth, typename Archive<W>::is_saving()))
+          return false;
         PREPARE_CUSTOM_VECTOR_SERIALIZATION(mm_tag.depth, const_cast<bytecoin_block&>(b).blockchain_branch);
         if (mm_tag.depth != b.blockchain_branch.size())
           return false;

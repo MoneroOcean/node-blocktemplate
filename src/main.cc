@@ -47,6 +47,7 @@ inline void SetExport(Isolate* isolate, Local<Object> target, const char* name,
 // cryptonote::append_mm_tag_to_extra writes byte with TX_EXTRA_MERGE_MINING_TAG (1 here) and VARINT DEPTH (2 here)
 const size_t MM_NONCE_SIZE = 1 + 2 + sizeof(crypto::hash);
 const size_t MAX_TX_HASHES_FOR_PARENT_BLOCK = 16384;
+const size_t MAX_BLOCK_ID_TX_HASHES = 65535;
 
 blobdata uint64be_to_blob(uint64_t num) {
     blobdata res = "        ";
@@ -204,6 +205,7 @@ void get_block_id(const FunctionCallbackInfo<Value>& info) {
     block b = AUTO_VAL_INIT(b);
     b.set_blob_type(blob_type);
     if (!parse_and_validate_block_from_blob(input, b)) return ThrowError(isolate, "Failed to parse block");
+    if (b.tx_hashes.size() > MAX_BLOCK_ID_TX_HASHES) return ThrowError(isolate, "Block has too many transaction hashes");
 
     crypto::hash block_id;
     if (!get_block_hash(b, block_id)) return ThrowError(isolate, "Failed to calculate hash for block");
