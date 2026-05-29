@@ -69,6 +69,8 @@ extern "C" {
 
 //Namespace specifically for ring ct code
 namespace rct {
+    static constexpr size_t MAX_LEGACY_RINGCT_OUTPUTS = 1024;
+
     //basic ops containers
     typedef unsigned char * Bytes;
 
@@ -526,7 +528,7 @@ namespace rct {
             return ar.stream().good();
 	  if (type != RCTTypeFull && type != RCTTypeSimple && type != RCTTypeBulletproof && type != RCTTypeBulletproof2 && type != RCTTypeCLSAG && type != RCTTypeBulletproofPlus && type != RCTTypeFullProofs && type != RCTTypeSalviumZero && type != RCTTypeSalviumOne)
             return false;
-	  if (type == RCTTypeBulletproofPlus || type == RCTTypeFullProofs || type == RCTTypeSalviumZero || type == RCTTypeSalviumOne)
+          if (type == RCTTypeBulletproofPlus || type == RCTTypeFullProofs || type == RCTTypeSalviumZero || type == RCTTypeSalviumOne)
           {
             uint32_t nbp = bulletproofs_plus.size();
             VARINT_FIELD(nbp)
@@ -569,6 +571,8 @@ namespace rct {
           }
           else
           {
+            if (outputs > MAX_LEGACY_RINGCT_OUTPUTS)
+              return false;
             ar.tag("rangeSigs");
             ar.begin_array();
             PREPARE_CUSTOM_VECTOR_SERIALIZATION(outputs, rangeSigs);
