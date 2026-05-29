@@ -1210,6 +1210,9 @@ namespace cryptonote
         tx_extra_merge_mining_tag mm_tag;
         if (!get_mm_tag_from_extra(b.miner_tx.extra, mm_tag))
           return false;
+        static constexpr size_t MAX_BYTECOIN_BLOCKCHAIN_BRANCH_DEPTH = 64;
+        if (mm_tag.depth > MAX_BYTECOIN_BLOCKCHAIN_BRANCH_DEPTH)
+          return false;
 
         static const size_t MAX_MERGE_MINING_DEPTH = 128;
         if (mm_tag.depth > MAX_MERGE_MINING_DEPTH)
