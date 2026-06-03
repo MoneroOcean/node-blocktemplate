@@ -45,7 +45,6 @@ bool do_serialize(Archive<false> &ar, std::vector<T> &v)
     return false;
   }
 
-  v.reserve(cnt);
   for (size_t i = 0; i < cnt; i++) {
     if (i > 0)
       ar.delimit_array();

@@ -42,31 +42,10 @@
 #define TX_EXTRA_TAG_ADDITIONAL_PUBKEYS        0x04
 #define TX_EXTRA_TAG_OFFSHORE                  0x17
 #define TX_EXTRA_TAG_MEMO                      0x18
-#define TX_EXTRA_TAG_SERVICE_NODE_REGISTER     0x70
-#define TX_EXTRA_TAG_SERVICE_NODE_STATE_CHANGE 0x71
-#define TX_EXTRA_TAG_SERVICE_NODE_WINNER       0x72
-#define TX_EXTRA_TAG_SERVICE_NODE_CONTRIBUTOR  0x73
-#define TX_EXTRA_TAG_SERVICE_NODE_PUBKEY       0x74
-#define TX_EXTRA_TAG_TX_SECRET_KEY             0x75
-#define TX_EXTRA_TAG_TX_KEY_IMAGE_PROOFS       0x76
-#define TX_EXTRA_TAG_TX_KEY_IMAGE_UNLOCK       0x77
-#define TX_EXTRA_TAG_SERVICE_NODE_DEREGISTER   0x78
 #define TX_EXTRA_MYSTERIOUS_MINERGATE_TAG      0xDE
 
 #define TX_EXTRA_NONCE_PAYMENT_ID              0x00
 #define TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID    0x01
-
-namespace service_nodes
-{
-  enum class new_state : uint16_t
-  {
-    deregister = 0,
-    decommission,
-    recommission,
-    ip_change_penalty,
-    _count,
-  };
-};
 
 namespace cryptonote
 {
@@ -222,150 +201,6 @@ namespace cryptonote
     END_SERIALIZE()
   };
 
-  struct tx_extra_service_node_winner
-  {
-    crypto::public_key m_service_node_key;
-
-    BEGIN_SERIALIZE()
-      FIELD(m_service_node_key)
-    END_SERIALIZE()
-  };
-
-  struct tx_extra_service_node_pubkey
-  {
-    crypto::public_key m_service_node_key;
-
-    BEGIN_SERIALIZE()
-      FIELD(m_service_node_key)
-    END_SERIALIZE()
-  };
-
-
-  struct tx_extra_service_node_register
-  {
-    std::vector<crypto::public_key> m_public_spend_keys;
-    std::vector<crypto::public_key> m_public_view_keys;
-    uint64_t m_portions_for_operator;
-    std::vector<uint64_t> m_portions;
-    uint64_t m_expiration_timestamp;
-    crypto::signature m_service_node_signature;
-
-    BEGIN_SERIALIZE()
-      FIELD(m_public_spend_keys)
-      FIELD(m_public_view_keys)
-      FIELD(m_portions_for_operator)
-      FIELD(m_portions)
-      FIELD(m_expiration_timestamp)
-      FIELD(m_service_node_signature)
-    END_SERIALIZE()
-  };
-
-  struct tx_extra_service_node_contributor
-  {
-    crypto::public_key m_spend_public_key;
-    crypto::public_key m_view_public_key;
-
-    BEGIN_SERIALIZE()
-      FIELD(m_spend_public_key)
-      FIELD(m_view_public_key)
-    END_SERIALIZE()
-  };
-
-  struct tx_extra_service_node_deregister
-  {
-    struct vote
-    {
-      crypto::signature signature;
-      uint32_t          voters_quorum_index;
-    };
-
-    uint64_t          block_height;
-    uint32_t          service_node_index;
-    std::vector<vote> votes;
-
-    BEGIN_SERIALIZE()
-      FIELD(block_height)
-      FIELD(service_node_index)
-      FIELD(votes)
-    END_SERIALIZE()
-  };
-
-  struct tx_extra_service_node_state_change
-  {
-    struct vote
-    {
-      vote() = default;
-      vote(crypto::signature const &signature, uint32_t validator_index) : signature(signature), validator_index(validator_index) {}
-      crypto::signature signature;
-      uint32_t validator_index;
-
-      BEGIN_SERIALIZE()
-        VARINT_FIELD(validator_index)
-        FIELD(signature)
-      END_SERIALIZE()
-    };
-
-    service_nodes::new_state state;
-    uint64_t block_height;
-    uint32_t service_node_index;
-    std::vector<vote> votes;
-
-    tx_extra_service_node_state_change() = default;
-
-    template<typename... VotesArgs>
-    tx_extra_service_node_state_change(service_nodes::new_state state, uint64_t block_height, uint32_t service_node_index, VotesArgs &&...votes)
-      : state{state}, block_height{block_height}, service_node_index{service_node_index}, votes{std::forward<VotesArgs>(votes)...} {}
-
-    bool operator==(const tx_extra_service_node_state_change &sc) const
-    {
-      return state == sc.state && block_height == sc.block_height && service_node_index == sc.service_node_index;
-    }
-
-    BEGIN_SERIALIZE()
-      ENUM_FIELD(state, state < service_nodes::new_state::_count)
-      FIELD(block_height)
-      FIELD(service_node_index)
-      FIELD(votes)
-    END_SERIALIZE()
-  };
-
-  struct tx_extra_tx_secret_key
-  {
-    crypto::secret_key key;
-
-    BEGIN_SERIALIZE()
-      FIELD(key)
-    END_SERIALIZE()
-  };
-
-  struct tx_extra_tx_key_image_proofs
-  {
-    struct proof
-    {
-      crypto::key_image key_image;
-      crypto::signature signature;
-    };
-
-    std::vector<proof> proofs;
-
-    BEGIN_SERIALIZE()
-      FIELD(proofs)
-    END_SERIALIZE()
-  };
-
-  struct tx_extra_tx_key_image_unlock
-  {
-    crypto::key_image key_image;
-    crypto::signature signature;
-    uint32_t          nonce;
-
-    BEGIN_SERIALIZE()
-      FIELD(key_image)
-      FIELD(signature)
-      FIELD(nonce)
-    END_SERIALIZE()
-  };
-
   // tx_extra_field format, except tx_extra_padding and tx_extra_pub_key:
   //   varint tag;
   //   varint size;
@@ -377,21 +212,9 @@ namespace cryptonote
                          tx_extra_additional_pub_keys,
                          tx_extra_mysterious_minergate,
                          tx_extra_offshore,
-                         tx_extra_memo,
-                         tx_extra_service_node_pubkey,
-                         tx_extra_service_node_register,
-                         tx_extra_service_node_contributor,
-                         tx_extra_service_node_winner,
-                         tx_extra_service_node_state_change,
-                         tx_extra_tx_secret_key,
-                         tx_extra_tx_key_image_proofs,
-                         tx_extra_tx_key_image_unlock,
-                         tx_extra_service_node_deregister
+                         tx_extra_memo
                         > tx_extra_field;
 }
-
-BLOB_SERIALIZER(cryptonote::tx_extra_service_node_deregister::vote);
-BLOB_SERIALIZER(cryptonote::tx_extra_tx_key_image_proofs::proof);
 
 VARIANT_TAG(binary_archive, cryptonote::tx_extra_padding,                   TX_EXTRA_TAG_PADDING);
 VARIANT_TAG(binary_archive, cryptonote::tx_extra_pub_key,                   TX_EXTRA_TAG_PUBKEY);
@@ -401,12 +224,3 @@ VARIANT_TAG(binary_archive, cryptonote::tx_extra_additional_pub_keys,       TX_E
 VARIANT_TAG(binary_archive, cryptonote::tx_extra_mysterious_minergate,      TX_EXTRA_MYSTERIOUS_MINERGATE_TAG);
 VARIANT_TAG(binary_archive, cryptonote::tx_extra_offshore,                  TX_EXTRA_TAG_OFFSHORE);
 VARIANT_TAG(binary_archive, cryptonote::tx_extra_memo,                      TX_EXTRA_TAG_MEMO);
-VARIANT_TAG(binary_archive, cryptonote::tx_extra_service_node_register,     TX_EXTRA_TAG_SERVICE_NODE_REGISTER);
-VARIANT_TAG(binary_archive, cryptonote::tx_extra_service_node_state_change, TX_EXTRA_TAG_SERVICE_NODE_STATE_CHANGE);
-VARIANT_TAG(binary_archive, cryptonote::tx_extra_service_node_contributor,  TX_EXTRA_TAG_SERVICE_NODE_CONTRIBUTOR);
-VARIANT_TAG(binary_archive, cryptonote::tx_extra_service_node_winner,       TX_EXTRA_TAG_SERVICE_NODE_WINNER);
-VARIANT_TAG(binary_archive, cryptonote::tx_extra_service_node_pubkey,       TX_EXTRA_TAG_SERVICE_NODE_PUBKEY);
-VARIANT_TAG(binary_archive, cryptonote::tx_extra_tx_secret_key,             TX_EXTRA_TAG_TX_SECRET_KEY);
-VARIANT_TAG(binary_archive, cryptonote::tx_extra_tx_key_image_proofs,       TX_EXTRA_TAG_TX_KEY_IMAGE_PROOFS);
-VARIANT_TAG(binary_archive, cryptonote::tx_extra_tx_key_image_unlock,       TX_EXTRA_TAG_TX_KEY_IMAGE_UNLOCK);
-VARIANT_TAG(binary_archive, cryptonote::tx_extra_service_node_deregister,   TX_EXTRA_TAG_SERVICE_NODE_DEREGISTER);

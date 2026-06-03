@@ -528,13 +528,13 @@ namespace cryptonote
   };
 
 
-  enum loki_version
+  enum xtnc_version
   {
-    loki_version_0 = 0,
-    loki_version_1,
-    loki_version_2,
-    loki_version_3_per_output_unlock_times,
-    loki_version_4_tx_types,
+    xtnc_version_0 = 0,
+    xtnc_version_1,
+    xtnc_version_2,
+    xtnc_version_3_per_output_unlock_times,
+    xtnc_version_4_tx_types,
   };
 
   class transaction_prefix
@@ -591,14 +591,14 @@ namespace cryptonote
 
 
     //
-    // NOTE: Loki specific
+    // XTNC-specific transaction type.
     //
-    enum loki_type_t
+    enum xtnc_type_t
     {
-      loki_type_standard,
-      loki_type_deregister,
-      loki_type_key_image_unlock,
-      loki_type_count,
+      xtnc_type_standard,
+      xtnc_type_deregister,
+      xtnc_type_key_image_unlock,
+      xtnc_type_count,
     };
 
     union
@@ -899,10 +899,10 @@ namespace cryptonote
       } else {
 
         VARINT_FIELD(version)
-        if (version > loki_version_2 && (blob_type == BLOB_TYPE_CRYPTONOTE_LOKI || blob_type == BLOB_TYPE_CRYPTONOTE_XTNC))
+        if (version > xtnc_version_2 && blob_type == BLOB_TYPE_CRYPTONOTE_XTNC)
         {
           FIELD(output_unlock_times)
-          if (version == loki_version_3_per_output_unlock_times)
+          if (version == xtnc_version_3_per_output_unlock_times)
             FIELD(is_deregister)
         }
 
@@ -926,16 +926,16 @@ namespace cryptonote
         else
           FIELD(vout)
 
-        if (blob_type == BLOB_TYPE_CRYPTONOTE_LOKI || blob_type == BLOB_TYPE_CRYPTONOTE_XTNC || blob_type == BLOB_TYPE_CRYPTONOTE_ARQMA)
+        if (blob_type == BLOB_TYPE_CRYPTONOTE_XTNC || blob_type == BLOB_TYPE_CRYPTONOTE_ARQMA)
         {
-          if ((version >= loki_version_3_per_output_unlock_times || version >= static_cast<size_t>(cryptonote_arq::txversion::v3)) && vout.size() != output_unlock_times.size())
+          if ((version >= xtnc_version_3_per_output_unlock_times || version >= static_cast<size_t>(cryptonote_arq::txversion::v3)) && vout.size() != output_unlock_times.size())
             return false;
         }
         FIELD(extra)
-        if ((blob_type == BLOB_TYPE_CRYPTONOTE_LOKI || blob_type == BLOB_TYPE_CRYPTONOTE_XTNC) && version >= loki_version_4_tx_types)
+        if (blob_type == BLOB_TYPE_CRYPTONOTE_XTNC && version >= xtnc_version_4_tx_types)
         {
           VARINT_FIELD(type)
-          if (static_cast<uint16_t>(type) >= loki_type_count) return false;
+          if (static_cast<uint16_t>(type) >= xtnc_type_count) return false;
         }
         if (blob_type == BLOB_TYPE_CRYPTONOTE_ZEPHYR) {
           VARINT_FIELD(pricing_record_height)
