@@ -5,7 +5,6 @@
             "sources": [
                 "src/main.cc",
                 "src/cryptonote_basic/cryptonote_format_utils.cpp",
-                "src/offshore/pricing_record.cpp",
                 "src/zephyr_oracle/pricing_record.cpp",
                 "src/salvium_oracle/pricing_record.cpp",
                 "src/crypto/tree-hash.c",

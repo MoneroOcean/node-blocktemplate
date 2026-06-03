@@ -42,6 +42,10 @@ inline void SetExport(Isolate* isolate, Local<Object> target, const char* name,
     ).Check();
 }
 
+inline void ThrowUnsupportedBlobType(Isolate* isolate) {
+    ThrowError(isolate, "Unsupported blob type.");
+}
+
 }  // namespace
 
 // cryptonote::append_mm_tag_to_extra writes byte with TX_EXTRA_MERGE_MINING_TAG (1 here) and VARINT DEPTH (2 here)
@@ -171,6 +175,7 @@ void convert_blob(const FunctionCallbackInfo<Value>& info) { // (parentBlockBuff
         if (!info[1]->IsNumber()) return ThrowError(isolate, "Argument 2 should be a number");
         blob_type = static_cast<enum BLOB_TYPE>(ToInt32(isolate, info[1]));
     }
+    if (!is_supported_blob_type(blob_type)) return ThrowUnsupportedBlobType(isolate);
 
     block b = AUTO_VAL_INIT(b);
     b.set_blob_type(blob_type);
@@ -201,6 +206,7 @@ void get_block_id(const FunctionCallbackInfo<Value>& info) {
         if (!info[1]->IsNumber()) return ThrowError(isolate, "Argument 2 should be a number");
         blob_type = static_cast<enum BLOB_TYPE>(ToInt32(isolate, info[1]));
     }
+    if (!is_supported_blob_type(blob_type)) return ThrowUnsupportedBlobType(isolate);
 
     block b = AUTO_VAL_INIT(b);
     b.set_blob_type(blob_type);
@@ -228,6 +234,7 @@ void construct_block_blob(const FunctionCallbackInfo<Value>& info) { // (parentB
         if (!info[2]->IsNumber()) return ThrowError(isolate, "Argument 3 should be a number");
         blob_type = static_cast<enum BLOB_TYPE>(ToInt32(isolate, info[2]));
     }
+    if (!is_supported_blob_type(blob_type)) return ThrowUnsupportedBlobType(isolate);
 
     if (Buffer::Length(nonce_buf) != (blob_type == BLOB_TYPE_AEON ? 8 : 4)) return ThrowError(isolate, "Nonce buffer has invalid size.");
 
@@ -346,6 +353,7 @@ void construct_mm_parent_block_blob(const FunctionCallbackInfo<Value>& info) { /
     if (!Buffer::HasInstance(child_target)) return ThrowError(isolate, "Third argument should be a buffer object.");
 
     const enum BLOB_TYPE blob_type = static_cast<enum BLOB_TYPE>(ToInt32(isolate, info[1]));
+    if (!is_supported_blob_type(blob_type)) return ThrowUnsupportedBlobType(isolate);
 
     blobdata input       = std::string(Buffer::Data(target), Buffer::Length(target));
     blobdata child_input = std::string(Buffer::Data(child_target), Buffer::Length(child_target));
@@ -382,6 +390,7 @@ void construct_mm_child_block_blob(const FunctionCallbackInfo<Value>& info) { //
     if (!Buffer::HasInstance(child_block_template_buf)) return ThrowError(isolate, "Third argument should be a buffer object.");
 
     const enum BLOB_TYPE blob_type = static_cast<enum BLOB_TYPE>(ToInt32(isolate, info[1]));
+    if (!is_supported_blob_type(blob_type)) return ThrowUnsupportedBlobType(isolate);
 
     blobdata block_template_blob = std::string(Buffer::Data(block_template_buf), Buffer::Length(block_template_buf));
     blobdata child_block_template_blob = std::string(Buffer::Data(child_block_template_buf), Buffer::Length(child_block_template_buf));
