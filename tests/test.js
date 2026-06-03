@@ -179,6 +179,12 @@ function buildRtmTemplate(transactions, overrides = {}) {
   }, overrides), "RUCyaEZxQu3Eure73XPQ57si813RYAMQKC");
 }
 
+test("RtmBlockTemplate rejects invalid RTM coinbase dev rewards", () => {
+  assert.throws(() => buildRtmTemplate([], {
+    coinbasedevreward: { value: 100000000, scriptpubkey: "zz" }
+  }), /Invalid coinbase dev reward/);
+});
+
 test("readTransaction handles RTM quorum commitment payload boundaries", () => {
   const txBuffer = Buffer.from(rtmQuorumCommitmentTxHex, "hex");
   const parsed = rtm.readTransaction(txBuffer, 0, true);
