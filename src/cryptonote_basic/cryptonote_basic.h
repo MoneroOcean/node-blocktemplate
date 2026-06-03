@@ -528,13 +528,13 @@ namespace cryptonote
   };
 
 
-  enum xtnc_version
+  enum xeq_xtnc_version
   {
-    xtnc_version_0 = 0,
-    xtnc_version_1,
-    xtnc_version_2,
-    xtnc_version_3_per_output_unlock_times,
-    xtnc_version_4_tx_types,
+    xeq_xtnc_version_0 = 0,
+    xeq_xtnc_version_1,
+    xeq_xtnc_version_2,
+    xeq_xtnc_version_3_per_output_unlock_times,
+    xeq_xtnc_version_4_tx_types,
   };
 
   class transaction_prefix
@@ -591,14 +591,14 @@ namespace cryptonote
 
 
     //
-    // XTNC-specific transaction type.
+    // XEQ/XTNC transaction type.
     //
-    enum xtnc_type_t
+    enum xeq_xtnc_type_t
     {
-      xtnc_type_standard,
-      xtnc_type_deregister,
-      xtnc_type_key_image_unlock,
-      xtnc_type_count,
+      xeq_xtnc_type_standard,
+      xeq_xtnc_type_deregister,
+      xeq_xtnc_type_key_image_unlock,
+      xeq_xtnc_type_count,
     };
 
     union
@@ -899,10 +899,10 @@ namespace cryptonote
       } else {
 
         VARINT_FIELD(version)
-        if (version > xtnc_version_2 && blob_type == BLOB_TYPE_CRYPTONOTE_XTNC)
+        if (version > xeq_xtnc_version_2 && (blob_type == BLOB_TYPE_CRYPTONOTE_XEQ || blob_type == BLOB_TYPE_CRYPTONOTE_XTNC))
         {
           FIELD(output_unlock_times)
-          if (version == xtnc_version_3_per_output_unlock_times)
+          if (version == xeq_xtnc_version_3_per_output_unlock_times)
             FIELD(is_deregister)
         }
 
@@ -926,16 +926,16 @@ namespace cryptonote
         else
           FIELD(vout)
 
-        if (blob_type == BLOB_TYPE_CRYPTONOTE_XTNC || blob_type == BLOB_TYPE_CRYPTONOTE_ARQMA)
+        if (blob_type == BLOB_TYPE_CRYPTONOTE_XEQ || blob_type == BLOB_TYPE_CRYPTONOTE_XTNC || blob_type == BLOB_TYPE_CRYPTONOTE_ARQMA)
         {
-          if ((version >= xtnc_version_3_per_output_unlock_times || version >= static_cast<size_t>(cryptonote_arq::txversion::v3)) && vout.size() != output_unlock_times.size())
+          if ((version >= xeq_xtnc_version_3_per_output_unlock_times || version >= static_cast<size_t>(cryptonote_arq::txversion::v3)) && vout.size() != output_unlock_times.size())
             return false;
         }
         FIELD(extra)
-        if (blob_type == BLOB_TYPE_CRYPTONOTE_XTNC && version >= xtnc_version_4_tx_types)
+        if ((blob_type == BLOB_TYPE_CRYPTONOTE_XEQ || blob_type == BLOB_TYPE_CRYPTONOTE_XTNC) && version >= xeq_xtnc_version_4_tx_types)
         {
           VARINT_FIELD(type)
-          if (static_cast<uint16_t>(type) >= xtnc_type_count) return false;
+          if (static_cast<uint16_t>(type) >= xeq_xtnc_type_count) return false;
         }
         if (blob_type == BLOB_TYPE_CRYPTONOTE_ZEPHYR) {
           VARINT_FIELD(pricing_record_height)
