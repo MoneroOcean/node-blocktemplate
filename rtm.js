@@ -459,12 +459,18 @@ function validateCoinbaseDevReward(coinbaseDevReward, rewardToPool) {
   return true;
 }
 
-function generateTransactionOutputs(rpcData, poolAddress) {
-  let reward       = rpcData.coinbasevalue + (rpcData.coinbasedevreward ? rpcData.coinbasedevreward.value : 0);
+function hasValidCoinbaseDevReward(rpcData) {
+  if (rpcData.coinbasedevreward === undefined || rpcData.coinbasedevreward === null) return false;
+  if (!validateCoinbaseDevReward(rpcData.coinbasedevreward, rpcData.coinbasevalue)) throw new Error('Invalid coinbase dev reward');
+  return true;
+}
+
+function generateTransactionOutputs(rpcData, poolAddress, hasDevReward) {
+  let reward       = rpcData.coinbasevalue + (hasDevReward ? rpcData.coinbasedevreward.value : 0);
   let rewardToPool = reward;
   let txOutputBuffers = [];
 
-  if (validateCoinbaseDevReward(rpcData.coinbasedevreward, rewardToPool)) {
+  if (hasDevReward) {
     const rewards = createTransactionOutput(rpcData.coinbasedevreward.value, null, rewardToPool, reward, txOutputBuffers, Buffer.from(rpcData.coinbasedevreward.scriptpubkey, 'hex'));
     reward        = rewards.reward;
     rewardToPool  = rewards.rewardToPool;
@@ -515,7 +521,8 @@ function generateTransactionOutputs(rpcData, poolAddress) {
 
 module.exports.RtmBlockTemplate = function(rpcData, poolAddress) {
   const extraNoncePlaceholderLength = 17;
-  const coinbaseVersion = rpcData.coinbasedevreward ? Buffer.concat([packUInt16LE(1), packUInt16LE(0)]) : Buffer.concat([packUInt16LE(3), packUInt16LE(5)]);
+  const hasDevReward = hasValidCoinbaseDevReward(rpcData);
+  const coinbaseVersion = hasDevReward ? Buffer.concat([packUInt16LE(1), packUInt16LE(0)]) : Buffer.concat([packUInt16LE(3), packUInt16LE(5)]);
 
   const scriptSigPart1 = Buffer.concat([
     serializeNumber(rpcData.height),
@@ -544,7 +551,7 @@ module.exports.RtmBlockTemplate = function(rpcData, poolAddress) {
     packUInt32LE(0), // txInSequence
     // end transaction input
     // transaction output
-    generateTransactionOutputs(rpcData, poolAddress, is_witness),
+    generateTransactionOutputs(rpcData, poolAddress, hasDevReward),
     // end transaction ouput
     packUInt32LE(0) // txLockTime
   ]);
