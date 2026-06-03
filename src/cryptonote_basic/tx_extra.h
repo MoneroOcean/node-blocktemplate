@@ -32,7 +32,6 @@
 
 #define TX_EXTRA_PADDING_MAX_COUNT             255
 #define TX_EXTRA_NONCE_MAX_COUNT               255
-#define TX_EXTRA_OFFSHORE_MAX_COUNT            255
 #define TX_EXTRA_MEMO_MAX_COUNT                255
 
 #define TX_EXTRA_TAG_PADDING                   0x00
@@ -40,7 +39,6 @@
 #define TX_EXTRA_NONCE                         0x02
 #define TX_EXTRA_MERGE_MINING_TAG              0x03
 #define TX_EXTRA_TAG_ADDITIONAL_PUBKEYS        0x04
-#define TX_EXTRA_TAG_OFFSHORE                  0x17
 #define TX_EXTRA_TAG_MEMO                      0x18
 #define TX_EXTRA_TAG_SERVICE_NODE_REGISTER     0x70
 #define TX_EXTRA_TAG_SERVICE_NODE_STATE_CHANGE 0x71
@@ -195,15 +193,6 @@ namespace cryptonote
   };
 
   struct tx_extra_mysterious_minergate
-  {
-    std::string data;
-
-    BEGIN_SERIALIZE()
-      FIELD(data)
-    END_SERIALIZE()
-  };
-
-  struct tx_extra_offshore
   {
     std::string data;
 
@@ -376,7 +365,6 @@ namespace cryptonote
                          tx_extra_merge_mining_tag,
                          tx_extra_additional_pub_keys,
                          tx_extra_mysterious_minergate,
-                         tx_extra_offshore,
                          tx_extra_memo,
                          tx_extra_service_node_pubkey,
                          tx_extra_service_node_register,
@@ -399,7 +387,6 @@ VARIANT_TAG(binary_archive, cryptonote::tx_extra_nonce,                     TX_E
 VARIANT_TAG(binary_archive, cryptonote::tx_extra_merge_mining_tag,          TX_EXTRA_MERGE_MINING_TAG);
 VARIANT_TAG(binary_archive, cryptonote::tx_extra_additional_pub_keys,       TX_EXTRA_TAG_ADDITIONAL_PUBKEYS);
 VARIANT_TAG(binary_archive, cryptonote::tx_extra_mysterious_minergate,      TX_EXTRA_MYSTERIOUS_MINERGATE_TAG);
-VARIANT_TAG(binary_archive, cryptonote::tx_extra_offshore,                  TX_EXTRA_TAG_OFFSHORE);
 VARIANT_TAG(binary_archive, cryptonote::tx_extra_memo,                      TX_EXTRA_TAG_MEMO);
 VARIANT_TAG(binary_archive, cryptonote::tx_extra_service_node_register,     TX_EXTRA_TAG_SERVICE_NODE_REGISTER);
 VARIANT_TAG(binary_archive, cryptonote::tx_extra_service_node_state_change, TX_EXTRA_TAG_SERVICE_NODE_STATE_CHANGE);
