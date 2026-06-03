@@ -108,16 +108,22 @@ static bool fillExtraMM(cryptonote::block& block1, const cryptonote::block& bloc
         return false;
     }
 
-    const int extra_nonce_size = extra[pos + 1];
-    const int new_extra_nonce_size = extra_nonce_size - MM_NONCE_SIZE;
+    const size_t extra_nonce_size = extra[pos + 1];
+    const size_t extra_nonce_start = pos + 2;
+    if (extra_nonce_start > extra.size() || extra_nonce_start + extra_nonce_size > extra.size()) {
+        fprintf(stderr, "Malformed TX_EXTRA_NONCE length in extra\n");
+        return false;
+    }
 
-    if (new_extra_nonce_size < 0) {
+    if (extra_nonce_size < MM_NONCE_SIZE) {
         fprintf(stderr, "Too small extra size, can't fit MM tag here\n");
         return false;
     }
 
-    extra[pos + 1] = new_extra_nonce_size;
-    std::copy(extra_nonce_replace.begin(), extra_nonce_replace.end(), extra.begin() + pos + 1 + new_extra_nonce_size + 1);
+    const size_t new_extra_nonce_size = extra_nonce_size - MM_NONCE_SIZE;
+
+    extra[pos + 1] = static_cast<uint8_t>(new_extra_nonce_size);
+    std::copy(extra_nonce_replace.begin(), extra_nonce_replace.end(), extra.begin() + extra_nonce_start + new_extra_nonce_size);
     //extra.resize(pos + 1 + extra_nonce_size + 1);
 
     // get the most recent timestamp (solve duplicated timestamps on child coin)
