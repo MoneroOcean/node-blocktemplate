@@ -61,8 +61,6 @@ namespace cryptonote
   bool add_extra_nonce_to_tx_extra(std::vector<uint8_t>& tx_extra, const blobdata& extra_nonce);
   void set_payment_id_to_tx_extra_nonce(blobdata& extra_nonce, const crypto::hash& payment_id);
   bool get_payment_id_from_tx_extra_nonce(const blobdata& extra_nonce, crypto::hash& payment_id);
-  bool append_mm_tag_to_extra(std::vector<uint8_t>& tx_extra, const tx_extra_merge_mining_tag& mm_tag);
-  bool get_mm_tag_from_extra(const std::vector<uint8_t>& tx_extra, tx_extra_merge_mining_tag& mm_tag);
   void get_blob_hash(const blobdata& blob, crypto::hash& res);
   crypto::hash get_blob_hash(const blobdata& blob);
   std::string short_hash_str(const crypto::hash& h);
@@ -72,11 +70,9 @@ namespace cryptonote
   bool get_transaction_hash(const transaction& t, crypto::hash& res, size_t& blob_size);
   bool get_transaction_hash(const transaction& t, crypto::hash& res, size_t* blob_size);
   bool get_block_hashing_blob(const block& b, blobdata& blob);
-  bool get_bytecoin_block_hashing_blob(const block& b, blobdata& blob);
   bool get_block_hash(const block& b, crypto::hash& res);
   crypto::hash get_block_hash(const block& b);
   bool get_block_header_hash(const block& b, crypto::hash& res);
-  bool get_bytecoin_block_longhash(const block& blk, crypto::hash& res);
   bool parse_and_validate_block_from_blob(const blobdata& b_blob, block& b);
   std::map<std::string, uint64_t> get_outs_money_amount(const transaction& tx);
   bool check_outs_valid(const transaction& tx);

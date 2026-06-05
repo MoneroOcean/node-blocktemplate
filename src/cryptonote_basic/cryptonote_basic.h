@@ -37,13 +37,11 @@ namespace cryptonote
   struct block;
   class transaction;
   class transaction_prefix;
-  struct tx_extra_merge_mining_tag;
 
   // Implemented in cryptonote_format_utils.cpp
   bool get_transaction_hash(const transaction& t, crypto::hash& res);
   void get_transaction_prefix_hash(const transaction_prefix& tx, crypto::hash& h);
   void get_blob_hash(const blobdata& blob, crypto::hash& res);
-  bool get_mm_tag_from_extra(const std::vector<uint8_t>& tx, tx_extra_merge_mining_tag& mm_tag);
 
   const static crypto::hash null_hash = AUTO_VAL_INIT(null_hash);
   const static crypto::public_key null_pkey = AUTO_VAL_INIT(null_pkey);
@@ -396,15 +394,6 @@ namespace cryptonote
   };
 
 
-  enum loki_version
-  {
-    loki_version_0 = 0,
-    loki_version_1,
-    loki_version_2,
-    loki_version_3_per_output_unlock_times,
-    loki_version_4_tx_types,
-  };
-
   class transaction_prefix
   {
 
@@ -451,24 +440,6 @@ namespace cryptonote
     carrot::rollup_binding_tag_t rollup_binding_tag;
     token_metadata_t token_metadata;
     layer2_rollup_data_t layer2_rollup_data;
-
-
-    //
-    // NOTE: Loki specific
-    //
-    enum loki_type_t
-    {
-      loki_type_standard,
-      loki_type_deregister,
-      loki_type_key_image_unlock,
-      loki_type_count,
-    };
-
-    union
-    {
-      bool is_deregister;
-      uint16_t type;
-    };
 
     BEGIN_SERIALIZE()
       if (!is_supported_blob_type(blob_type)) {
@@ -519,12 +490,6 @@ namespace cryptonote
       } else {
 
         VARINT_FIELD(version)
-        if (version > loki_version_2 && (blob_type == BLOB_TYPE_CRYPTONOTE_LOKI || blob_type == BLOB_TYPE_CRYPTONOTE_XTNC))
-        {
-          FIELD(output_unlock_times)
-          if (version == loki_version_3_per_output_unlock_times)
-            FIELD(is_deregister)
-        }
 
         if (version >= static_cast<size_t>(cryptonote_arq::txversion::v3) && (blob_type == BLOB_TYPE_CRYPTONOTE_ARQMA))
         {
@@ -546,17 +511,12 @@ namespace cryptonote
         else
           FIELD(vout)
 
-        if (blob_type == BLOB_TYPE_CRYPTONOTE_LOKI || blob_type == BLOB_TYPE_CRYPTONOTE_XTNC || blob_type == BLOB_TYPE_CRYPTONOTE_ARQMA)
+        if (blob_type == BLOB_TYPE_CRYPTONOTE_ARQMA)
         {
-          if ((version >= loki_version_3_per_output_unlock_times || version >= static_cast<size_t>(cryptonote_arq::txversion::v3)) && vout.size() != output_unlock_times.size())
+          if (version >= static_cast<size_t>(cryptonote_arq::txversion::v3) && vout.size() != output_unlock_times.size())
             return false;
         }
         FIELD(extra)
-        if ((blob_type == BLOB_TYPE_CRYPTONOTE_LOKI || blob_type == BLOB_TYPE_CRYPTONOTE_XTNC) && version >= loki_version_4_tx_types)
-        {
-          VARINT_FIELD(type)
-          if (static_cast<uint16_t>(type) >= loki_type_count) return false;
-        }
         if (blob_type == BLOB_TYPE_CRYPTONOTE_ZEPHYR) {
           VARINT_FIELD(pricing_record_height)
           VARINT_FIELD(amount_burnt)
@@ -583,7 +543,7 @@ namespace cryptonote
     BEGIN_SERIALIZE_OBJECT()
       FIELDS(*static_cast<transaction_prefix *>(this))
 
-      if (version == 1 && blob_type != BLOB_TYPE_CRYPTONOTE2 && blob_type != BLOB_TYPE_CRYPTONOTE3)
+      if (version == 1 && blob_type != BLOB_TYPE_CRYPTONOTE3)
       {
         ar.tag("signatures");
         ar.begin_array();
@@ -720,127 +680,6 @@ namespace cryptonote
   /*                                                                      */
   /************************************************************************/
 
-  const uint8_t CURRENT_BYTECOIN_BLOCK_MAJOR_VERSION = 1;
-
-  struct bytecoin_block
-  {
-    uint8_t major_version;
-    uint8_t minor_version;
-    crypto::hash prev_id;
-    uint32_t nonce;
-    size_t number_of_transactions;
-    std::vector<crypto::hash> miner_tx_branch;
-    transaction miner_tx;
-    std::vector<crypto::hash> blockchain_branch;
-  };
-
-  template <typename Archive>
-  bool has_enough_blockchain_branch_bytes(Archive&, size_t, const boost::mpl::bool_<true>& /*is_saving*/)
-  {
-    return true;
-  }
-
-  template <typename Archive>
-  bool has_enough_blockchain_branch_bytes(Archive& ar, size_t depth, const boost::mpl::bool_<false>& /*is_saving*/)
-  {
-    return depth <= ar.remaining_bytes() / sizeof(crypto::hash);
-  }
-
-  struct serializable_bytecoin_block
-  {
-    bytecoin_block& b;
-    uint64_t& timestamp;
-    bool hashing_serialization;
-    bool header_only;
-
-    serializable_bytecoin_block(bytecoin_block& b_, uint64_t& timestamp_, bool hashing_serialization_, bool header_only_) :
-      b(b_), timestamp(timestamp_), hashing_serialization(hashing_serialization_), header_only(header_only_)
-    {
-    }
-
-    BEGIN_SERIALIZE_OBJECT()
-      VARINT_FIELD_N("major_version", b.major_version);
-      VARINT_FIELD_N("minor_version", b.minor_version);
-      VARINT_FIELD(timestamp);
-      FIELD_N("prev_id", b.prev_id);
-      FIELD_N("nonce", b.nonce);
-
-      if (hashing_serialization)
-      {
-        crypto::hash miner_tx_hash;
-
-        if (b.miner_tx.version < 2) {
-          if (!get_transaction_hash(b.miner_tx, miner_tx_hash))
-            return false;
-        } else {
-          get_transaction_prefix_hash(static_cast<const transaction_prefix&>(b.miner_tx), miner_tx_hash);
-          const uint8_t data[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xbc, 0x36, 0x78, 0x9e, 0x7a, 0x1e, 0x28, 0x14, 0x36, 0x46, 0x42, 0x29, 0x82, 0x8f, 0x81, 0x7d, 0x66, 0x12, 0xf7, 0xb4, 0x77, 0xd6, 0x65, 0x91, 0xff, 0x96, 0xa9, 0xe0, 0x64, 0xbc, 0xc9, 0x8a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-          blobdata blobdata((char*)data, sizeof(data));
-          const unsigned char* p = (unsigned char*)&miner_tx_hash;
-          for (int i = 0; i != crypto::HASH_SIZE; ++ i, ++ p) blobdata[i] = *p;
-          get_blob_hash(blobdata, miner_tx_hash);
-        }
-
-        crypto::hash merkle_root;
-        crypto::tree_hash_from_branch(b.miner_tx_branch.data(), b.miner_tx_branch.size(), miner_tx_hash, 0, merkle_root);
-
-        FIELD(merkle_root);
-      }
-
-      VARINT_FIELD_N("number_of_transactions", b.number_of_transactions);
-      if (b.number_of_transactions < 1)
-        return false;
-
-      if (!header_only)
-      {
-        ar.tag("miner_tx_branch");
-        ar.begin_array();
-        size_t branch_size = crypto::tree_depth(b.number_of_transactions);
-        PREPARE_CUSTOM_VECTOR_SERIALIZATION(branch_size, const_cast<bytecoin_block&>(b).miner_tx_branch);
-        if (b.miner_tx_branch.size() != branch_size)
-          return false;
-        for (size_t i = 0; i < branch_size; ++i)
-        {
-          FIELDS(b.miner_tx_branch[i]);
-          if (i + 1 < branch_size)
-            ar.delimit_array();
-        }
-        ar.end_array();
-
-        FIELD(b.miner_tx);
-
-        tx_extra_merge_mining_tag mm_tag;
-        if (!get_mm_tag_from_extra(b.miner_tx.extra, mm_tag))
-          return false;
-        static constexpr size_t MAX_BYTECOIN_BLOCKCHAIN_BRANCH_DEPTH = 64;
-        if (mm_tag.depth > MAX_BYTECOIN_BLOCKCHAIN_BRANCH_DEPTH)
-          return false;
-
-        static const size_t MAX_MERGE_MINING_DEPTH = 128;
-        if (mm_tag.depth > MAX_MERGE_MINING_DEPTH)
-          return false;
-
-        ar.tag("blockchain_branch");
-        ar.begin_array();
-        if (!has_enough_blockchain_branch_bytes(ar, mm_tag.depth, typename Archive<W>::is_saving()))
-          return false;
-        PREPARE_CUSTOM_VECTOR_SERIALIZATION(mm_tag.depth, const_cast<bytecoin_block&>(b).blockchain_branch);
-        if (mm_tag.depth != b.blockchain_branch.size())
-          return false;
-        for (size_t i = 0; i < mm_tag.depth; ++i)
-        {
-          FIELDS(b.blockchain_branch[i]);
-          if (i + 1 < mm_tag.depth)
-            ar.delimit_array();
-        }
-        ar.end_array();
-      }
-    END_SERIALIZE()
-  };
-
-  // Implemented below
-  inline serializable_bytecoin_block make_serializable_bytecoin_block(const block& b, bool hashing_serialization, bool header_only);
-
   struct block_header
   {
     enum BLOB_TYPE blob_type;
@@ -854,29 +693,19 @@ namespace cryptonote
     zephyr_oracle::pricing_record zephyr_pricing_record;
     salvium_oracle::pricing_record salvium_pricing_record;
     crypto::cycle cycle;
-    crypto::cycle40 cycle40;
-    crypto::cycle48 cycle48;
     crypto::signature signature;
 
     BEGIN_SERIALIZE()
       VARINT_FIELD(major_version)
       VARINT_FIELD(minor_version)
-      if (blob_type != BLOB_TYPE_FORKNOTE2) VARINT_FIELD(timestamp)
+      VARINT_FIELD(timestamp)
       FIELD(prev_id)
-      if (blob_type == BLOB_TYPE_CRYPTONOTE_CUCKOO || blob_type == BLOB_TYPE_CRYPTONOTE_TUBE || blob_type == BLOB_TYPE_CRYPTONOTE_XTA) FIELD(nonce8)
-      if (blob_type != BLOB_TYPE_FORKNOTE2) {
-        if (blob_type == BLOB_TYPE_AEON) {
-          FIELD(nonce)
-        } else {
-          uint32_t nonce32;
-          if (typename Archive<W>::is_saving())  nonce32 = (uint32_t)nonce;
-          FIELD_N("nonce", nonce32);
-          if (!typename Archive<W>::is_saving()) nonce = nonce32;
-        }
-      }
-      if (blob_type == BLOB_TYPE_CRYPTONOTE_XTNC || blob_type == BLOB_TYPE_CRYPTONOTE_CUCKOO) FIELD(cycle)
-      if (blob_type == BLOB_TYPE_CRYPTONOTE_TUBE) FIELD(cycle40)
-      if (blob_type == BLOB_TYPE_CRYPTONOTE_XTA) FIELD(cycle48)
+      if (blob_type == BLOB_TYPE_CRYPTONOTE_CUCKOO) FIELD(nonce8)
+      uint32_t nonce32;
+      if (typename Archive<W>::is_saving())  nonce32 = (uint32_t)nonce;
+      FIELD_N("nonce", nonce32);
+      if (!typename Archive<W>::is_saving()) nonce = nonce32;
+      if (blob_type == BLOB_TYPE_CRYPTONOTE_CUCKOO) FIELD(cycle)
       if (blob_type == BLOB_TYPE_CRYPTONOTE_SALVIUM) {
         if (major_version >= 255) FIELD(salvium_pricing_record)
       } else if (blob_type == BLOB_TYPE_CRYPTONOTE_ZEPHYR) {
@@ -934,8 +763,6 @@ namespace cryptonote
 
   struct block: public block_header
   {
-    bytecoin_block parent_block;
-
     transaction miner_tx;
     transaction protocol_tx;
     std::vector<crypto::hash> tx_hashes;
@@ -945,11 +772,6 @@ namespace cryptonote
 
     BEGIN_SERIALIZE_OBJECT()
       FIELDS(*static_cast<block_header *>(this))
-      if (blob_type == BLOB_TYPE_FORKNOTE2)
-      {
-        auto sbb = make_serializable_bytecoin_block(*this, false, false);
-        FIELD_N("parent_block", sbb);
-      }
       FIELD(miner_tx)
       if (blob_type == BLOB_TYPE_CRYPTONOTE_SALVIUM)
       {
@@ -962,12 +784,6 @@ namespace cryptonote
       }
     END_SERIALIZE()
   };
-
-  inline serializable_bytecoin_block make_serializable_bytecoin_block(const block& b, bool hashing_serialization, bool header_only)
-  {
-    block& block_ref = const_cast<block&>(b);
-    return serializable_bytecoin_block(block_ref.parent_block, block_ref.timestamp, hashing_serialization, header_only);
-  }
 
   /************************************************************************/
   /*                                                                      */

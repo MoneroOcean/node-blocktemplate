@@ -2,7 +2,7 @@
 
 # node-blocktemplate
 
-Native Node.js block template, blob, and merged-mining bindings for MoneroOcean-style pool tooling.
+Native Node.js block template and blob bindings for MoneroOcean-style pool tooling.
 
 <p>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-BSD--3--Clause%20%2B%20MIT-111111.svg" alt="BSD-3-Clause and MIT"></a>
@@ -18,11 +18,11 @@ Native Node.js block template, blob, and merged-mining bindings for MoneroOcean-
 
 It provides:
 - native block blob conversion and block ID helpers for Cryptonote-family templates
-- merged-mining parent and child block construction helpers
+- legacy merged-mining export compatibility stubs
 - address prefix decoding helpers
 - JavaScript-side helpers for Raven, RTM, KCN, Dero, ETH, and ERG-oriented template handling
 
-The current test suite covers active conversion vectors for ARQ, BLOC, IRD, MSR, RYO, SAL, TUBE, XEQ, XHV, XLA, XMR, XMV, XTNC, and ZEPH, plus RTM coinbase handling.
+The current test suite covers supported conversion vectors for ARQ, BLOC, MSR, RYO, SAL, XLA, XMR, XMV, and ZEPH; retired blob-type rejection; and RTM coinbase handling.
 
 ## Install
 From GitHub:
@@ -71,9 +71,9 @@ Exact, vector-backed usage examples live in [`tests/test.js`](tests/test.js).
 | `get_block_id(blockBuffer, blobType?)` | `Buffer` | Returns the 32-byte block ID. |
 | `address_decode(addressBuffer)` | `number` or `Buffer` | Returns the address prefix when the payload parses cleanly, otherwise the decoded raw payload. |
 | `address_decode_integrated(addressBuffer)` | `number` or `Buffer` | Integrated-address variant of `address_decode`. |
-| `get_merged_mining_nonce_size()` | `number` | Returns the merged-mining extra nonce size expected by the native helpers. |
-| `construct_mm_parent_block_blob(parentTemplate, blobType, childTemplate)` | `Buffer` | Injects merged-mining data into a parent block template. |
-| `construct_mm_child_block_blob(parentShare, blobType, childTemplate)` | `Buffer` | Builds the merged-mined child block blob from the solved parent share. |
+| `get_merged_mining_nonce_size()` | `number` | Returns the legacy merged-mining extra nonce size for callers that still import it. |
+| `construct_mm_parent_block_blob(parentTemplate, blobType, childTemplate)` | throws | Legacy export; merged-mining block construction is unsupported. |
+| `construct_mm_child_block_blob(parentShare, blobType, childTemplate)` | throws | Legacy export; merged-mining block construction is unsupported. |
 
 ### JavaScript Helpers
 | Method | Returns | Notes |
@@ -96,7 +96,6 @@ Exact, vector-backed usage examples live in [`tests/test.js`](tests/test.js).
 
 ## Supported Paths
 - Cryptonote-family blob conversion and solved-block reconstruction through the native addon
-- Forknote-style merged-mining parent and child block assembly
 - Prefix decoding for standard and integrated Cryptonote-family addresses
 - JavaScript helpers for Raven/KawPow, RTM/Ghostrider, KCN, Dero, ETH, and ERG pool integration
 

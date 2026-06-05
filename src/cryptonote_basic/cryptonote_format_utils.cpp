@@ -130,26 +130,6 @@ namespace cryptonote
     return true;
   }
   //---------------------------------------------------------------
-  bool append_mm_tag_to_extra(std::vector<uint8_t>& tx_extra, const tx_extra_merge_mining_tag& mm_tag)
-  {
-    blobdata blob;
-    if (!t_serializable_object_to_blob(mm_tag, blob))
-      return false;
-
-    tx_extra.push_back(TX_EXTRA_MERGE_MINING_TAG);
-    std::copy(reinterpret_cast<const uint8_t*>(blob.data()), reinterpret_cast<const uint8_t*>(blob.data() + blob.size()), std::back_inserter(tx_extra));
-    return true;
-  }
-  //---------------------------------------------------------------
-  bool get_mm_tag_from_extra(const std::vector<uint8_t>& tx_extra, tx_extra_merge_mining_tag& mm_tag)
-  {
-    std::vector<tx_extra_field> tx_extra_fields;
-    if (!parse_tx_extra(tx_extra, tx_extra_fields))
-      return false;
-
-    return find_tx_extra_field_by_type(tx_extra_fields, mm_tag);
-  }
-  //---------------------------------------------------------------
   void set_payment_id_to_tx_extra_nonce(blobdata& extra_nonce, const crypto::hash& payment_id)
   {
     extra_nonce.clear();
@@ -207,7 +187,7 @@ namespace cryptonote
   bool get_transaction_hash(const transaction& t, crypto::hash& res, size_t* blob_size)
   {
     // v1 transactions hash the entire blob
-    if (t.version == 1 && t.blob_type != BLOB_TYPE_CRYPTONOTE2 && t.blob_type != BLOB_TYPE_CRYPTONOTE3)
+    if (t.version == 1 && t.blob_type != BLOB_TYPE_CRYPTONOTE3)
     {
       size_t ignored_blob_size, &blob_size_ref = blob_size ? *blob_size : ignored_blob_size;
       return get_object_hash(t, res, blob_size_ref);
@@ -276,7 +256,7 @@ namespace cryptonote
     if (b.tx_hashes.size() > MAX_BLOCK_TX_HASHES)
       return false;
 
-    if (b.blob_type == BLOB_TYPE_CRYPTONOTE_XTNC || b.blob_type == BLOB_TYPE_CRYPTONOTE_CUCKOO || b.blob_type == BLOB_TYPE_CRYPTONOTE_TUBE || b.blob_type == BLOB_TYPE_CRYPTONOTE_XTA) {
+    if (b.blob_type == BLOB_TYPE_CRYPTONOTE_CUCKOO) {
       blob = t_serializable_object_to_blob(b.major_version);
       blob.append(reinterpret_cast<const char*>(&b.minor_version), sizeof(b.minor_version));
       blob.append(reinterpret_cast<const char*>(&b.timestamp), sizeof(b.timestamp));
@@ -295,16 +275,10 @@ namespace cryptonote
     if (b.blob_type == BLOB_TYPE_CRYPTONOTE3) {
       blob.append(reinterpret_cast<const char*>(&b.uncle), sizeof(b.uncle));
     }
-    if (b.blob_type == BLOB_TYPE_CRYPTONOTE_CUCKOO || b.blob_type == BLOB_TYPE_CRYPTONOTE_TUBE || b.blob_type == BLOB_TYPE_CRYPTONOTE_XTA) {
+    if (b.blob_type == BLOB_TYPE_CRYPTONOTE_CUCKOO) {
       blob.append(reinterpret_cast<const char*>(&b.nonce8), sizeof(b.nonce8));
     }
     return true;
-  }
-  //---------------------------------------------------------------
-  bool get_bytecoin_block_hashing_blob(const block& b, blobdata& blob)
-  {
-    auto sbb = make_serializable_bytecoin_block(b, true, true);
-    return t_serializable_object_to_blob(sbb, blob);
   }
   //---------------------------------------------------------------
   bool get_block_hash(const block& b, crypto::hash& res)
@@ -312,16 +286,6 @@ namespace cryptonote
     blobdata blob;
     if (!get_block_hashing_blob(b, blob))
       return false;
-
-    if (b.blob_type == BLOB_TYPE_FORKNOTE2)
-    {
-      blobdata parent_blob;
-      auto sbb = make_serializable_bytecoin_block(b, true, false);
-      if (!t_serializable_object_to_blob(sbb, parent_blob))
-        return false;
-
-      blob.append(parent_blob);
-    }
 
     return get_object_hash(blob, res);
   }
@@ -360,15 +324,6 @@ namespace cryptonote
       res[i] -= res[i-1];
 
     return res;
-  }
-  //---------------------------------------------------------------
-  bool get_bytecoin_block_longhash(const block& b, crypto::hash& res)
-  {
-    blobdata bd;
-    if(!get_bytecoin_block_hashing_blob(b, bd))
-      return false;
-    crypto::cn_slow_hash(bd.data(), bd.size(), res);
-    return true;
   }
   //---------------------------------------------------------------
   bool parse_and_validate_block_from_blob(const blobdata& b_blob, block& b)

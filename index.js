@@ -112,11 +112,6 @@ module.exports.RavenBlockTemplate = function(rpcData, poolAddress) {
 
     txCoinbase.addOutput(scriptCompile(poolAddrHash), Math.floor(rpcData.coinbasevalue));
 
-    // For CLORE
-    if (rpcData.CommunityAutonomousAddress && rpcData.CommunityAutonomousValue) {
-      txCoinbase.addOutput(scriptCompile(bitcoin.address.fromBase58Check(rpcData.CommunityAutonomousAddress).hash), Math.floor(rpcData.CommunityAutonomousValue));
-    }
-
     if (rpcData.default_witness_commitment) {
       txCoinbase.addOutput(Buffer.from(rpcData.default_witness_commitment, 'hex'), 0);
     }
