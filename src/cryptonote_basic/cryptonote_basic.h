@@ -350,6 +350,8 @@ namespace cryptonote
     END_KV_SERIALIZE_MAP()
   };
 
+  // RPC/JSON token type labels. These are not the binary_archive tags used for
+  // token_v transaction serialization; see the VARIANT_TAG registrations below.
   #define TOKEN_TYPE_UNSET 0
   #define TOKEN_TYPE_ERC20 1
   #define TOKEN_TYPE_SAL   2
@@ -854,6 +856,8 @@ VARIANT_TAG(binary_archive, cryptonote::txout_salvium_tagged_key, 0x3);
 VARIANT_TAG(binary_archive, cryptonote::txout_to_carrot_v1, 0x4);
 VARIANT_TAG(binary_archive, cryptonote::protocol_tx_data_t, 0x0);
 VARIANT_TAG(binary_archive, cryptonote::token_metadata_t, 0x0);
+// Match Salvium core transaction wire encoding for token_v. These values are
+// intentionally independent from the RPC TOKEN_TYPE_* labels above.
 VARIANT_TAG(binary_archive, cryptonote::erc_token_t, 0x0);
 VARIANT_TAG(binary_archive, cryptonote::sal_token_t, 0x1);
 VARIANT_TAG(binary_archive, cryptonote::transaction, 0xcc);
