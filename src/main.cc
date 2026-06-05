@@ -1,4 +1,5 @@
 #include <cmath>
+#include <limits>
 #include <node.h>
 #include <node_buffer.h>
 #include <v8.h>
@@ -29,6 +30,48 @@ inline Local<Value> CopyBuffer(Isolate* isolate, const char* data, size_t size) 
 
 inline int ToInt32(Isolate* isolate, Local<Value> value) {
     return value->Int32Value(isolate->GetCurrentContext()).FromMaybe(0);
+}
+
+inline bool ReadUint32Array(Isolate* isolate, Local<Value> value, uint32_t expected_length,
+                            uint32_t* output) {
+    if (!value->IsArray()) {
+        ThrowError(isolate, "Cycle argument should be an array.");
+        return false;
+    }
+
+    Local<Array> input = value.As<Array>();
+    if (input->Length() < expected_length) {
+        ThrowError(isolate, "Cycle argument has invalid length.");
+        return false;
+    }
+
+    Local<Context> context = isolate->GetCurrentContext();
+    for (uint32_t i = 0; i < expected_length; i++) {
+        Maybe<bool> maybe_has_value = input->Has(context, i);
+        bool has_value = false;
+        if (!maybe_has_value.To(&has_value)) return false;
+        if (!has_value) {
+            ThrowError(isolate, "Cycle argument contains missing entries.");
+            return false;
+        }
+
+        Local<Value> item;
+        if (!input->Get(context, i).ToLocal(&item)) return false;
+
+        Maybe<double> maybe_number = item->NumberValue(context);
+        double number = 0;
+        if (!maybe_number.To(&number)) return false;
+        if (!std::isfinite(number) || number < 0 ||
+            number > static_cast<double>(std::numeric_limits<uint32_t>::max()) ||
+            std::trunc(number) != number) {
+            ThrowError(isolate, "Cycle entries should be unsigned 32-bit integers.");
+            return false;
+        }
+
+        output[i] = static_cast<uint32_t>(number);
+    }
+
+    return true;
 }
 
 inline void SetExport(Isolate* isolate, Local<Object> target, const char* name,
@@ -147,8 +190,7 @@ void construct_block_blob(const FunctionCallbackInfo<Value>& info) { // (parentB
 
     if (blob_type == BLOB_TYPE_CRYPTONOTE_CUCKOO) {
         if (info.Length() != 4) return ThrowError(isolate, "You must provide 4 arguments.");
-        Local<Array> cycle = Local<Array>::Cast(info[3]);
-        for (int i = 0; i < 32; i++ ) b.cycle.data[i] = cycle->Get(isolate->GetCurrentContext(), i).ToLocalChecked()->NumberValue(isolate->GetCurrentContext()).ToChecked();
+        if (!ReadUint32Array(isolate, info[3], 32, b.cycle.data)) return;
     }
 
     if (!block_to_blob(b, output)) return ThrowError(isolate, "Failed to convert block to blob");

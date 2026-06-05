@@ -114,6 +114,33 @@ test("legacy merged-mining constructors are unsupported", () => {
   );
 });
 
+test("construct_block_blob validates Cuckoo cycle arguments", () => {
+  const xmvCase = cases.find((testCase) => testCase.name === "xmv");
+  const blob = Buffer.from(xmvCase.blob, "hex");
+  const nonce = Buffer.alloc(4);
+  const sparseCycle = new Array(32).fill(0);
+  delete sparseCycle[0];
+  const nonIntegerCycle = new Array(32).fill(0);
+  nonIntegerCycle[0] = Infinity;
+
+  assert.throws(
+    () => blocktemplate.construct_block_blob(blob, nonce, 8, {}),
+    /Cycle argument should be an array/
+  );
+  assert.throws(
+    () => blocktemplate.construct_block_blob(blob, nonce, 8, []),
+    /Cycle argument has invalid length/
+  );
+  assert.throws(
+    () => blocktemplate.construct_block_blob(blob, nonce, 8, sparseCycle),
+    /Cycle argument contains missing entries/
+  );
+  assert.throws(
+    () => blocktemplate.construct_block_blob(blob, nonce, 8, nonIntegerCycle),
+    /Cycle entries should be unsigned 32-bit integers/
+  );
+});
+
 const salV11BlockIdCases = [
   {
     name: "sal_v11_create_token",
