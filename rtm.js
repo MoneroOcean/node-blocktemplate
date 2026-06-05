@@ -2,9 +2,9 @@ const bech32  = require('bech32');
 const bitcoin = require('bitcoinjs-lib');
 const crypto = require('crypto');
 
-const { parseBigInt } = require('./bigint');
+const { BASE_DIFF, difficultyToFloat } = require('./bigint');
 
-const diff1 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
+const diff1 = BASE_DIFF;
 const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 const BASE58_INDEXES = new Map(Array.from(BASE58_ALPHABET, (char, index) => [char, index]));
 const MAX_RECOVERABLE_TRANSACTION_TAIL_BYTES = 64;
@@ -422,14 +422,20 @@ function decodeBase58Check(value) {
 }
 
 function addressToScript(addr) {
-  if (addr.length > MAX_BECH32_ADDRESS_LENGTH) throw new Error('Invalid address ' + addr);
+  if (typeof addr !== 'string') throw new Error('Invalid address');
+  if (addr.length > MAX_BECH32_ADDRESS_LENGTH) throw new Error('Invalid address length');
   let decoded;
   try {
     decoded = decodeBase58Check(addr);
   } catch(err) {}
   if (!decoded || decoded.length != 25) {
-    const decoded2 = Buffer.from(bech32.bech32.fromWords(bech32.bech32.decode(addr).words.slice(1)));
-    if (decoded2.length != 20) throw new Error('Invalid address ' + addr);
+    let decoded2;
+    try {
+      decoded2 = Buffer.from(bech32.bech32.fromWords(bech32.bech32.decode(addr).words.slice(1)));
+    } catch(err) {
+      throw new Error('Invalid address');
+    }
+    if (decoded2.length != 20) throw new Error('Invalid address');
     return Buffer.concat([Buffer.from([0x0, 0x14]), decoded2]);
   }
   const pubkey = decoded.slice(1, -4);
@@ -592,7 +598,7 @@ module.exports.RtmBlockTemplate = function(rpcData, poolAddress) {
   const txn = varIntBuffer(txs.length + 1);
 
   return {
-    difficulty:         parseFloat((diff1 / Number(parseBigInt(rpcData.target, 16))).toFixed(9)),
+    difficulty:         difficultyToFloat(diff1, rpcData.target, 16, 'RTM target'),
     height:             rpcData.height,
     prev_hash:          prev_hash,
     blocktemplate_blob: version + prev_hash + Buffer.alloc(32, 0).toString('hex') + curtime + bits.toString('hex') + Buffer.alloc(4, 0).toString('hex') +

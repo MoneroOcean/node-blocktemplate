@@ -6,7 +6,7 @@ const varuint = require('varuint-bitcoin');
 const crypto  = require('crypto');
 const fastMerkleRoot = require('merkle-lib/fastRoot');
 
-const { BASE_DIFF, parseBigInt } = require('./bigint');
+const { BASE_DIFF, BASE_RAVEN_DIFF, difficultyToFloat, parsePositiveBigInt } = require('./bigint');
 const rtm = require('./rtm');
 
 const MAX_TEMPLATE_TRANSACTIONS = 5000;
@@ -82,7 +82,7 @@ module.exports.baseDiff = function() {
 };
 
 module.exports.baseRavenDiff = function() {
-  return parseInt('0x00000000ff000000000000000000000000000000000000000000000000000000');
+  return BASE_RAVEN_DIFF;
 };
 
 module.exports.RavenBlockTemplate = function(rpcData, poolAddress) {
@@ -111,6 +111,13 @@ module.exports.RavenBlockTemplate = function(rpcData, poolAddress) {
     );
 
     txCoinbase.addOutput(scriptCompile(poolAddrHash), Math.floor(rpcData.coinbasevalue));
+
+    if (rpcData.CommunityAutonomousAddress && rpcData.CommunityAutonomousValue) {
+      txCoinbase.addOutput(
+        scriptCompile(bitcoin.address.fromBase58Check(rpcData.CommunityAutonomousAddress).hash),
+        Math.floor(rpcData.CommunityAutonomousValue)
+      );
+    }
 
     if (rpcData.default_witness_commitment) {
       txCoinbase.addOutput(Buffer.from(rpcData.default_witness_commitment, 'hex'), 0);
@@ -157,7 +164,7 @@ module.exports.RavenBlockTemplate = function(rpcData, poolAddress) {
     last_epoch_number = epoch_number;
   }
 
-  const difficulty = parseFloat((module.exports.baseRavenDiff() / Number(parseBigInt(rpcData.target, 16))).toFixed(9));
+  const difficulty = difficultyToFloat(module.exports.baseRavenDiff(), rpcData.target, 16, 'Raven target');
 
   return {
     blocktemplate_blob: blob.toString('hex'),
@@ -209,6 +216,9 @@ function update_merkle_root_hash(offset, payload, blob_in, blob_out, transaction
     }
     transactions.push(tx);
   }
+  if (offset !== blob_in.length) {
+    throw new Error('Unexpected data after block template transactions');
+  }
   getMerkleRoot(transactions, transaction_hash_func, detectWitness).copy(blob_out, 4 + 32);
 };
 
@@ -239,7 +249,7 @@ module.exports.constructNewDeroBlob = function(blockTemplate, nonceBuff) {
 };
 
 module.exports.EthBlockTemplate = function(rpcData) {
-  const difficulty = Number(module.exports.baseDiff() / parseBigInt(rpcData[2].substr(2), 16));
+  const difficulty = Number(module.exports.baseDiff() / parsePositiveBigInt(stripHexPrefix(rpcData[2], 'ETH target'), 16, 'ETH target'));
   return {
     hash:               rpcData[0].substr(2),
     seed_hash:          rpcData[1].substr(2),
@@ -249,7 +259,7 @@ module.exports.EthBlockTemplate = function(rpcData) {
 };
 
 module.exports.ErgBlockTemplate = function(rpcData) {
-  const difficulty = Number(module.exports.baseDiff() / parseBigInt(rpcData.b));
+  const difficulty = Number(module.exports.baseDiff() / parsePositiveBigInt(rpcData.b, undefined, 'ERG target'));
   return {
     hash:               rpcData.msg,
     hash2:              rpcData.pk,
@@ -264,11 +274,7 @@ module.exports.RtmBlockTemplate = function(rpcData, poolAddress) {
 
 module.exports.convertRtmBlob = function(blobBuffer) {
   let header = blobBuffer.slice(0, 80);
-  try {
-    update_merkle_root_hash(80, true, blobBuffer, header, transaction_hash, true);
-  } catch (err) {
-    // Keep process alive when daemon returns malformed RTM template data.
-  }
+  update_merkle_root_hash(80, true, blobBuffer, header, transaction_hash, true);
   return header;
 };
 
@@ -279,11 +285,7 @@ module.exports.convertKcnBlob = function(blobBuffer) {
 };
 
 module.exports.constructNewRtmBlob = function(blockTemplate, nonceBuff) {
-  try {
-    update_merkle_root_hash(80, true, blockTemplate, blockTemplate, transaction_hash, true);
-  } catch (err) {
-    // Keep process alive when daemon returns malformed RTM template data.
-  }
+  update_merkle_root_hash(80, true, blockTemplate, blockTemplate, transaction_hash, true);
   nonceBuff.copy(blockTemplate, 76, 0, 4);
   return blockTemplate;
 };
@@ -293,3 +295,8 @@ module.exports.constructNewKcnBlob = function(blockTemplate, nonceBuff) {
   nonceBuff.copy(blockTemplate, 76, 0, 4);
   return blockTemplate;
 };
+
+function stripHexPrefix(value, label) {
+  if (typeof value !== 'string') throw new Error(`Invalid ${label}`);
+  return value.startsWith('0x') ? value.slice(2) : value;
+}

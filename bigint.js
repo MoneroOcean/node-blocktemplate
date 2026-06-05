@@ -1,6 +1,8 @@
 "use strict";
 
 const BASE_DIFF = BigInt("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
+const BASE_RAVEN_DIFF = BigInt("0x00000000ff000000000000000000000000000000000000000000000000000000");
+const DIFF_PRECISION = 1000000000n;
 
 function parseBigInt(value, base) {
   if (typeof value === "bigint") return value;
@@ -19,7 +21,27 @@ function parseBigInt(value, base) {
   return BigInt(value || 0);
 }
 
+function parsePositiveBigInt(value, base, label = "value") {
+  let parsed;
+  try {
+    parsed = parseBigInt(value, base);
+  } catch (err) {
+    throw new Error(`Invalid ${label}`);
+  }
+  if (parsed <= 0n) throw new Error(`Invalid ${label}`);
+  return parsed;
+}
+
+function difficultyToFloat(base, target, targetBase, label = "target") {
+  const dividend = parseBigInt(base);
+  const divisor = parsePositiveBigInt(target, targetBase, label);
+  return Number((dividend * DIFF_PRECISION) / divisor) / Number(DIFF_PRECISION);
+}
+
 module.exports = {
   BASE_DIFF,
-  parseBigInt
+  BASE_RAVEN_DIFF,
+  difficultyToFloat,
+  parseBigInt,
+  parsePositiveBigInt
 };

@@ -5,6 +5,8 @@ const test = require("node:test");
 const blocktemplate = require("../build/Release/blocktemplate");
 const blocktemplateJs = require("../index.js");
 const rtm = require("../rtm.js");
+const bitcoin = require("bitcoinjs-lib");
+const varuint = require("varuint-bitcoin");
 
 const cases = [
   {
@@ -181,6 +183,20 @@ test("RtmBlockTemplate rejects invalid RTM coinbase dev rewards", () => {
   }), /Invalid coinbase dev reward/);
 });
 
+test("RtmBlockTemplate rejects overlong payout addresses without echoing input", () => {
+  const payee = "R" + "A".repeat(256);
+  assert.throws(
+    () => buildRtmTemplate([], {
+      smartnode: { amount: 1, payee }
+    }),
+    (err) => {
+      assert.match(err.message, /Invalid address length/);
+      assert.equal(err.message.includes(payee), false);
+      return true;
+    }
+  );
+});
+
 test("readTransaction handles RTM quorum commitment payload boundaries", () => {
   const txBuffer = Buffer.from(rtmQuorumCommitmentTxHex, "hex");
   const parsed = rtm.readTransaction(txBuffer, 0, true);
@@ -294,6 +310,36 @@ test("convertRtmBlob recovers RTM special transaction tail before next transacti
   );
 });
 
+test("convertRtmBlob rejects malformed RTM template data", () => {
+  const tooManyTransactions = Buffer.concat([
+    Buffer.alloc(80, 0),
+    Buffer.from("fd8913", "hex")
+  ]);
+  assert.throws(
+    () => blocktemplateJs.convertRtmBlob(tooManyTransactions),
+    /Invalid transaction count/
+  );
+  assert.throws(
+    () => blocktemplateJs.constructNewRtmBlob(Buffer.from(tooManyTransactions), Buffer.from("11223344", "hex")),
+    /Invalid transaction count/
+  );
+});
+
+test("convertRtmBlob rejects unconsumed bytes after declared RTM transactions", () => {
+  const tx = Buffer.from(buildEmptyRtmSpecialTx(6), "hex");
+  const blob = Buffer.concat([
+    Buffer.alloc(80, 0),
+    Buffer.from("01", "hex"),
+    tx,
+    Buffer.from("00", "hex")
+  ]);
+
+  assert.throws(
+    () => blocktemplateJs.convertRtmBlob(blob),
+    /Unexpected data after block template transactions/
+  );
+});
+
 test("convertRtmBlob handles RTM special coinbase without daemon payload", () => {
   const originalDateNow = Date.now;
   Date.now = () => 1710000000000;
@@ -313,4 +359,72 @@ test("convertRtmBlob handles RTM special coinbase without daemon payload", () =>
   } finally {
     Date.now = originalDateNow;
   }
+});
+
+test("RavenBlockTemplate includes daemon-supplied CLORE community payout", () => {
+  const poolAddress = "RUCyaEZxQu3Eure73XPQ57si813RYAMQKC";
+  const communityAddress = poolAddress;
+  const template = blocktemplateJs.RavenBlockTemplate({
+    height: 1,
+    bits: "1d00ffff",
+    curtime: 1710000000,
+    previousblockhash: "00".repeat(32),
+    version: 0x20000000,
+    coinbasevalue: 5000000000,
+    target: "00000000ffff0000000000000000000000000000000000000000000000000000",
+    transactions: [],
+    CommunityAutonomousAddress: communityAddress,
+    CommunityAutonomousValue: 1250000000
+  }, poolAddress);
+  const blob = Buffer.from(template.blocktemplate_blob, "hex");
+  let offset = 80 + 8 + 32;
+  const txCount = varuint.decode(blob, offset);
+  offset += varuint.decode.bytes;
+  const coinbase = bitcoin.Transaction.fromBuffer(blob.slice(offset), true, false);
+
+  assert.equal(txCount, 1);
+  assert.deepEqual(coinbase.outs.map((output) => output.value), [5000000000, 1250000000]);
+});
+
+test("block template difficulty rejects invalid targets and uses exact scaled Raven/RTM arithmetic", () => {
+  const ravenTemplate = blocktemplateJs.RavenBlockTemplate({
+    height: 1,
+    bits: "1d00ffff",
+    curtime: 1710000000,
+    previousblockhash: "00".repeat(32),
+    version: 0x20000000,
+    coinbasevalue: 5000000000,
+    target: "000000007f800000000000000000000000000000000000000000000000000001",
+    transactions: []
+  }, "RUCyaEZxQu3Eure73XPQ57si813RYAMQKC");
+
+  assert.equal(ravenTemplate.difficulty, 1.999999999);
+  assert.equal(buildRtmTemplate([], {
+    target: "8000000000000000000000000000000000000000000000000000000000000000"
+  }).difficulty, 1.999999999);
+  assert.throws(
+    () => blocktemplateJs.RavenBlockTemplate({
+      height: 1,
+      bits: "1d00ffff",
+      curtime: 1710000000,
+      previousblockhash: "00".repeat(32),
+      version: 0x20000000,
+      coinbasevalue: 5000000000,
+      target: "00",
+      transactions: []
+    }, "RUCyaEZxQu3Eure73XPQ57si813RYAMQKC"),
+    /Invalid Raven target/
+  );
+  assert.throws(
+    () => blocktemplateJs.EthBlockTemplate(["0x" + "11".repeat(32), "0x" + "22".repeat(32), "0x0", "1"]),
+    /Invalid ETH target/
+  );
+  assert.throws(
+    () => blocktemplateJs.ErgBlockTemplate({ msg: "11", pk: "22", b: "0", h: "1" }),
+    /Invalid ERG target/
+  );
+  assert.throws(
+    () => buildRtmTemplate([], { target: "00" }),
+    /Invalid RTM target/
+  );
 });
