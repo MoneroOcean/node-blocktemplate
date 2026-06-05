@@ -8,6 +8,9 @@ const diff1 = BASE_DIFF;
 const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 const BASE58_INDEXES = new Map(Array.from(BASE58_ALPHABET, (char, index) => [char, index]));
 const MAX_RECOVERABLE_TRANSACTION_TAIL_BYTES = 64;
+const MAX_RTM_TEMPLATE_TRANSACTIONS = 5000;
+const MAX_RTM_TRANSACTION_BYTES = 1024 * 1024;
+const MAX_RTM_TEMPLATE_TRANSACTION_BYTES = 64 * 1024 * 1024;
 
 function reverseBuffer(buff) {
   let reversed = Buffer.alloc(buff.length);
@@ -312,6 +315,24 @@ function validateRtmTransaction(buffer) {
   return true;
 }
 
+function decodeRtmTransactionData(tx) {
+  if (!tx || typeof tx.data !== 'string' || tx.data.length % 2 !== 0) {
+    throw new Error('Invalid RTM transaction data');
+  }
+  if (tx.data.length / 2 > MAX_RTM_TRANSACTION_BYTES) {
+    throw new Error('RTM transaction data is too large');
+  }
+  if (!/^[0-9a-fA-F]*$/.test(tx.data)) {
+    throw new Error('Invalid RTM transaction data');
+  }
+  return Buffer.from(tx.data, 'hex');
+}
+
+function describeRtmTransaction(tx) {
+  if (!tx || typeof tx.data !== 'string') return 'invalid transaction data';
+  return `${tx.data.length / 2} byte transaction`;
+}
+
 module.exports.readTransaction = readTransaction;
 module.exports.findRecoverableTransactionOffset = findRecoverableTransactionOffset;
 module.exports.extendTransactionRaw = extendTransactionRaw;
@@ -577,22 +598,30 @@ module.exports.RtmBlockTemplate = function(rpcData, poolAddress) {
   const curtime = packUInt32LE(rpcData.curtime).toString('hex');
   let bits = Buffer.from(rpcData.bits, 'hex');
   bits.writeUInt32LE(bits.readUInt32BE());
+  if (!Array.isArray(rpcData.transactions)) throw new Error('Invalid RTM transactions');
+  if (rpcData.transactions.length > MAX_RTM_TEMPLATE_TRANSACTIONS) throw new Error('Too many RTM transactions');
+
   let txs = [];
+  let txBytes = 0;
   // skip version 1 transaction because they contain some OP_RETURN(0x6A) opcode in the beginning of
   // tx input scripts instead of size of script part so not sure how to parse them
   // just drop them for now
   // example: https://explorer.raptoreum.com/tx/1461d70fa8362b0896e2e9be6312521f2684f22c9b0f9152695f33f67d9f9d3f
   rpcData.transactions.forEach(function(tx) {
     if (tx.version != 1) {
+      let txBuffer;
       try {
-        validateRtmTransaction(Buffer.from(tx.data, 'hex'));
+        txBuffer = decodeRtmTransactionData(tx);
+        validateRtmTransaction(txBuffer);
       } catch(err) {
-        console.error("Skip RTM tx due to parse error: " + tx.data);
+        console.error("Skip RTM tx due to parse error: " + describeRtmTransaction(tx));
         return; // skip transaction if it is not parsed OK (varint coding seems to be different for RTM)
       }
-      txs.push(tx);
+      txBytes += txBuffer.length;
+      if (txBytes > MAX_RTM_TEMPLATE_TRANSACTION_BYTES) throw new Error('RTM transaction data is too large');
+      txs.push(txBuffer);
     } else {
-      console.error("Skip RTM v1 tx: " + tx.data);
+      console.error("Skip RTM v1 tx: " + describeRtmTransaction(tx));
     }
   });
   const txn = varIntBuffer(txs.length + 1);
@@ -603,7 +632,7 @@ module.exports.RtmBlockTemplate = function(rpcData, poolAddress) {
     prev_hash:          prev_hash,
     blocktemplate_blob: version + prev_hash + Buffer.alloc(32, 0).toString('hex') + curtime + bits.toString('hex') + Buffer.alloc(4, 0).toString('hex') +
                         txn.toString('hex') + blob1.toString('hex') + Buffer.alloc(extraNoncePlaceholderLength, 0xCC).toString('hex') + blob2.toString('hex')  +
-                        Buffer.concat(txs.map(function(tx) { return Buffer.from(tx.data, 'hex'); })).toString('hex'),
+                        Buffer.concat(txs).toString('hex'),
     reserved_offset:    80 + txn.length + blob1.length
   }
 }

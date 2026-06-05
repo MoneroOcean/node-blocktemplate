@@ -1,6 +1,7 @@
 "use strict";
 
 const assert = require("node:assert/strict");
+const crypto = require("node:crypto");
 const test = require("node:test");
 const blocktemplate = require("../build/Release/blocktemplate");
 const blocktemplateJs = require("../index.js");
@@ -151,6 +152,11 @@ const rtmSpecialTxHex = "0300020001f189c058fc197826cec441160f8395be58f6934661c2f
 const rtmQuorumCommitmentTxHex = "03000600000000000000fd0401" + "aa".repeat(260);
 const rtmNormalTxHex = "0200000001" + "11".repeat(32) + "000000000151feffffff01e803000000000000015100000000";
 
+function hash256(buffer) {
+  const first = crypto.createHash("sha256").update(buffer).digest();
+  return crypto.createHash("sha256").update(first).digest();
+}
+
 function buildEmptyRtmSpecialTx(type, payload = "") {
   const txVersion = Buffer.alloc(4);
   txVersion.writeInt32LE(3 | (type << 16));
@@ -195,6 +201,30 @@ test("RtmBlockTemplate rejects overlong payout addresses without echoing input",
       return true;
     }
   );
+});
+
+test("RtmBlockTemplate limits transaction count", () => {
+  assert.throws(
+    () => buildRtmTemplate(new Array(5001).fill({ version: 1, data: "" })),
+    /Too many RTM transactions/
+  );
+});
+
+test("RtmBlockTemplate logs skipped RTM transactions without echoing data", () => {
+  const txData = "aa".repeat(1024);
+  const originalConsoleError = console.error;
+  const logs = [];
+  console.error = (message) => logs.push(String(message));
+
+  try {
+    buildRtmTemplate([{ version: 2, data: txData }]);
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.equal(logs.length, 1);
+  assert.match(logs[0], /1024 byte transaction/);
+  assert.equal(logs[0].includes(txData), false);
 });
 
 test("readTransaction handles RTM quorum commitment payload boundaries", () => {
@@ -356,6 +386,36 @@ test("convertRtmBlob handles RTM special coinbase without daemon payload", () =>
       actual,
       "000000200000000000000000000000000000000000000000000000000000000000000000dcfc2be89415b5d826ac3b4a1ac1a4db2a7ad8578e63f0ffb4678978f5b8a2958087ec65ffff001d00000000"
     );
+  } finally {
+    Date.now = originalDateNow;
+  }
+});
+
+test("convertRtmBlob uses txid merkle root for RTM witness coinbase", () => {
+  const originalDateNow = Date.now;
+  Date.now = () => 1710000000000;
+
+  try {
+    const template = buildRtmTemplate([], {
+      default_witness_commitment: "6a24aa21a9ed" + "00".repeat(32)
+    });
+    const blob = Buffer.from(template.blocktemplate_blob, "hex");
+    const header = blocktemplateJs.convertRtmBlob(blob);
+
+    let offset = 80;
+    const transactionCount = varuint.decode(blob, offset);
+    offset += varuint.decode.bytes;
+    assert.equal(transactionCount, 1);
+
+    const parsed = rtm.readTransaction(blob, offset, true);
+    const txidMerkleRoot = hash256(parsed.transaction.__toBuffer(undefined, undefined, false));
+    const witnessCommitmentRoot = hash256(Buffer.concat([
+      Buffer.alloc(32, 0),
+      parsed.transaction.ins[0].witness[0]
+    ]));
+
+    assert.equal(header.slice(36, 68).toString("hex"), txidMerkleRoot.toString("hex"));
+    assert.notEqual(header.slice(36, 68).toString("hex"), witnessCommitmentRoot.toString("hex"));
   } finally {
     Date.now = originalDateNow;
   }
