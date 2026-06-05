@@ -33,6 +33,7 @@
 #include "storages/portable_storage.h"
 
 #include "string_tools.h"
+#include <cstddef>
 namespace zephyr_oracle
 {
 
@@ -88,6 +89,27 @@ namespace zephyr_oracle
     pr_serialized in{};
     if (in._load(src, hparent))
     {
+      if (in.signature.length() != sizeof(signature) * 2) {
+        return false;
+      }
+
+      auto hex_value = [](char c) -> int {
+        if (c >= '0' && c <= '9') return c - '0';
+        if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+        if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+        return -1;
+      };
+
+      unsigned char decoded_signature[sizeof(signature)]{};
+      for (size_t i = 0; i < sizeof(decoded_signature); ++i) {
+        const int high = hex_value(in.signature[i * 2]);
+        const int low = hex_value(in.signature[i * 2 + 1]);
+        if (high < 0 || low < 0) {
+          return false;
+        }
+        decoded_signature[i] = static_cast<unsigned char>((high << 4) | low);
+      }
+
       // Copy everything into the local instance
       spot = in.spot;
       moving_average = in.moving_average;
@@ -99,10 +121,7 @@ namespace zephyr_oracle
       reserve_ratio_ma = in.reserve_ratio_ma;
       yield_price = in.yield_price;
       timestamp = in.timestamp;
-      for (unsigned int i = 0; i < in.signature.length(); i += 2) {
-        std::string byteString = in.signature.substr(i, 2);
-        signature[i>>1] = (char) strtol(byteString.c_str(), NULL, 16);
-      }
+      std::memcpy(signature, decoded_signature, sizeof(signature));
       return true;
     }
 

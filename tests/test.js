@@ -101,6 +101,31 @@ test("convert_blob rejects removed coin-specific blob types", () => {
   }
 });
 
+test("native methods reject non-buffer arguments without aborting", () => {
+  const buffer = Buffer.alloc(4);
+
+  assert.throws(
+    () => blocktemplate.convert_blob(null),
+    /Argument should be a buffer object/
+  );
+  assert.throws(
+    () => blocktemplate.get_block_id(undefined),
+    /Argument should be a buffer object/
+  );
+  assert.throws(
+    () => blocktemplate.construct_block_blob(buffer, null),
+    /Both arguments should be buffer objects/
+  );
+  assert.throws(
+    () => blocktemplate.address_decode(null),
+    /Argument should be a buffer object/
+  );
+  assert.throws(
+    () => blocktemplate.address_decode_integrated(undefined),
+    /Argument should be a buffer object/
+  );
+});
+
 test("legacy merged-mining constructors are unsupported", () => {
   const buffer = Buffer.alloc(1);
 

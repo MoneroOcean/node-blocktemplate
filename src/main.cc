@@ -3,6 +3,7 @@
 #include <node.h>
 #include <node_buffer.h>
 #include <v8.h>
+#include <cstring>
 #include <stdint.h>
 #include <string>
 #include "cryptonote_basic/cryptonote_basic.h"
@@ -26,6 +27,23 @@ inline void ThrowError(Isolate* isolate, const char* message) {
 
 inline Local<Value> CopyBuffer(Isolate* isolate, const char* data, size_t size) {
     return Buffer::Copy(isolate, data, size).ToLocalChecked();
+}
+
+inline bool GetBufferArgument(Isolate* isolate, Local<Value> value, const char* error_message,
+                              Local<Object>* output) {
+    if (!value->IsObject()) {
+        ThrowError(isolate, error_message);
+        return false;
+    }
+
+    Local<Object> object = value.As<Object>();
+    if (!Buffer::HasInstance(object)) {
+        ThrowError(isolate, error_message);
+        return false;
+    }
+
+    *output = object;
+    return true;
 }
 
 inline int ToInt32(Isolate* isolate, Local<Value> value) {
@@ -110,8 +128,8 @@ void convert_blob(const FunctionCallbackInfo<Value>& info) { // (parentBlockBuff
     if (info.Length() < 1) return ThrowError(info.GetIsolate(), "You must provide one argument.");
 
     v8::Isolate *isolate = v8::Isolate::GetCurrent();
-    Local<Object> target = info[0]->ToObject(isolate->GetCurrentContext()).ToLocalChecked();
-    if (!Buffer::HasInstance(target)) return ThrowError(isolate, "Argument should be a buffer object.");
+    Local<Object> target;
+    if (!GetBufferArgument(isolate, info[0], "Argument should be a buffer object.", &target)) return;
 
     blobdata input = std::string(Buffer::Data(target), Buffer::Length(target));
     blobdata output = "";
@@ -136,8 +154,8 @@ void get_block_id(const FunctionCallbackInfo<Value>& info) {
     if (info.Length() < 1) return ThrowError(info.GetIsolate(), "You must provide one argument.");
 
     v8::Isolate *isolate = v8::Isolate::GetCurrent();
-    Local<Object> target = info[0]->ToObject(isolate->GetCurrentContext()).ToLocalChecked();
-    if (!Buffer::HasInstance(target)) return ThrowError(isolate, "Argument should be a buffer object.");
+    Local<Object> target;
+    if (!GetBufferArgument(isolate, info[0], "Argument should be a buffer object.", &target)) return;
 
     blobdata input = std::string(Buffer::Data(target), Buffer::Length(target));
 
@@ -164,10 +182,10 @@ void construct_block_blob(const FunctionCallbackInfo<Value>& info) { // (parentB
     if (info.Length() < 2) return ThrowError(info.GetIsolate(), "You must provide two arguments.");
 
     v8::Isolate *isolate = v8::Isolate::GetCurrent();
-    Local<Object> block_template_buf = info[0]->ToObject(isolate->GetCurrentContext()).ToLocalChecked();
-    Local<Object> nonce_buf = info[1]->ToObject(isolate->GetCurrentContext()).ToLocalChecked();
-
-    if (!Buffer::HasInstance(block_template_buf) || !Buffer::HasInstance(nonce_buf)) return ThrowError(isolate, "Both arguments should be buffer objects.");
+    Local<Object> block_template_buf;
+    Local<Object> nonce_buf;
+    if (!GetBufferArgument(isolate, info[0], "Both arguments should be buffer objects.", &block_template_buf) ||
+        !GetBufferArgument(isolate, info[1], "Both arguments should be buffer objects.", &nonce_buf)) return;
 
     enum BLOB_TYPE blob_type = BLOB_TYPE_CRYPTONOTE;
     if (info.Length() >= 3) {
@@ -178,7 +196,8 @@ void construct_block_blob(const FunctionCallbackInfo<Value>& info) { // (parentB
 
     if (Buffer::Length(nonce_buf) != 4) return ThrowError(isolate, "Nonce buffer has invalid size.");
 
-    uint32_t nonce = *reinterpret_cast<uint32_t*>(Buffer::Data(nonce_buf));
+    uint32_t nonce = 0;
+    std::memcpy(&nonce, Buffer::Data(nonce_buf), sizeof(nonce));
     blobdata block_template_blob = std::string(Buffer::Data(block_template_buf), Buffer::Length(block_template_buf));
     blobdata output = "";
 
@@ -201,9 +220,8 @@ void address_decode(const FunctionCallbackInfo<Value>& info) {
     if (info.Length() < 1) return ThrowError(info.GetIsolate(), "You must provide one argument.");
 
     v8::Isolate *isolate = v8::Isolate::GetCurrent();
-    Local<Object> target = info[0]->ToObject(isolate->GetCurrentContext()).ToLocalChecked();
-
-    if (!Buffer::HasInstance(target)) return ThrowError(isolate, "Argument should be a buffer object.");
+    Local<Object> target;
+    if (!GetBufferArgument(isolate, info[0], "Argument should be a buffer object.", &target)) return;
 
     blobdata input = std::string(Buffer::Data(target), Buffer::Length(target));
 
@@ -235,9 +253,8 @@ void address_decode_integrated(const FunctionCallbackInfo<Value>& info) {
     if (info.Length() < 1) return ThrowError(info.GetIsolate(), "You must provide one argument.");
 
     v8::Isolate *isolate = v8::Isolate::GetCurrent();
-    Local<Object> target = info[0]->ToObject(isolate->GetCurrentContext()).ToLocalChecked();
-
-    if (!Buffer::HasInstance(target)) return ThrowError(isolate, "Argument should be a buffer object.");
+    Local<Object> target;
+    if (!GetBufferArgument(isolate, info[0], "Argument should be a buffer object.", &target)) return;
 
     blobdata input = std::string(Buffer::Data(target), Buffer::Length(target));
 
