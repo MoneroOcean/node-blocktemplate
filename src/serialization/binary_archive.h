@@ -10,6 +10,7 @@
 #include <cassert>
 #include <iostream>
 #include <iterator>
+#include <limits>
 #include <boost/type_traits/make_unsigned.hpp>
 
 #include "common/varint.h"
@@ -86,8 +87,32 @@ struct binary_archive<false> : public binary_archive_base<std::istream, false>
   template <class T>
   void serialize_uvarint(T &v)
   {
-    typedef std::istreambuf_iterator<char> it;
-    tools::read_varint(it(stream_), it(), v); // XXX handle failure
+    T ret = 0;
+    const int bits = std::numeric_limits<T>::digits;
+
+    for (int shift = 0;; shift += 7) {
+      char c;
+      if (!stream_.get(c)) {
+        stream_.setstate(std::ios::failbit);
+        return;
+      }
+
+      unsigned char byte = static_cast<unsigned char>(c);
+      if (shift + 7 >= bits && byte >= 1 << (bits - shift)) {
+        stream_.setstate(std::ios::failbit);
+        return;
+      }
+      if (byte == 0 && shift != 0) {
+        stream_.setstate(std::ios::failbit);
+        return;
+      }
+
+      ret |= static_cast<T>(byte & 0x7f) << shift;
+      if ((byte & 0x80) == 0) {
+        v = ret;
+        return;
+      }
+    }
   }
   void begin_array(size_t &s)
   {

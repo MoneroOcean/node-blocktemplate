@@ -223,6 +223,10 @@ void address_decode(const FunctionCallbackInfo<Value>& info) {
         data = uint64be_to_blob(prefix) + data;
         info.GetReturnValue().Set(CopyBuffer(isolate, data.data(), data.size()));
     } else {
+        if (prefix > std::numeric_limits<uint32_t>::max()) {
+            info.GetReturnValue().Set(Undefined(isolate));
+            return;
+        }
         info.GetReturnValue().Set(Integer::NewFromUnsigned(isolate, static_cast<uint32_t>(prefix)));
     }
 }
@@ -253,6 +257,10 @@ void address_decode_integrated(const FunctionCallbackInfo<Value>& info) {
         data = uint64be_to_blob(prefix) + data;
         info.GetReturnValue().Set(CopyBuffer(isolate, data.data(), data.size()));
     } else {
+        if (prefix > std::numeric_limits<uint32_t>::max()) {
+            info.GetReturnValue().Set(Undefined(isolate));
+            return;
+        }
         info.GetReturnValue().Set(Integer::NewFromUnsigned(isolate, static_cast<uint32_t>(prefix)));
     }
 }
