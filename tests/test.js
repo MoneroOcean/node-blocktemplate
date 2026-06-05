@@ -157,6 +157,11 @@ function hash256(buffer) {
   return crypto.createHash("sha256").update(first).digest();
 }
 
+function hash256_3(buffer) {
+  const first = crypto.createHash("sha3-256").update(buffer).digest();
+  return crypto.createHash("sha3-256").update(first).digest();
+}
+
 function buildEmptyRtmSpecialTx(type, payload = "") {
   const txVersion = Buffer.alloc(4);
   txVersion.writeInt32LE(3 | (type << 16));
@@ -419,6 +424,23 @@ test("convertRtmBlob uses txid merkle root for RTM witness coinbase", () => {
   } finally {
     Date.now = originalDateNow;
   }
+});
+
+test("constructNewKcnBlob uses SHA3 merkle branch hashing", () => {
+  const tx = Buffer.from(rtmNormalTxHex, "hex");
+  const blob = Buffer.concat([
+    Buffer.alloc(80, 0),
+    Buffer.from("02", "hex"),
+    tx,
+    tx
+  ]);
+  const actual = blocktemplateJs.constructNewKcnBlob(blob, Buffer.from("11223344", "hex"));
+  const txHash = hash256_3(tx);
+  const expectedMerkleRoot = hash256_3(Buffer.concat([txHash, txHash]));
+  const bitcoinStyleMerkleRoot = hash256(Buffer.concat([txHash, txHash]));
+
+  assert.equal(actual.slice(36, 68).toString("hex"), expectedMerkleRoot.toString("hex"));
+  assert.notEqual(actual.slice(36, 68).toString("hex"), bitcoinStyleMerkleRoot.toString("hex"));
 });
 
 test("RavenBlockTemplate includes daemon-supplied CLORE community payout", () => {
