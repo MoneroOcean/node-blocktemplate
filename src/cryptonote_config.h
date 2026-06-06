@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+
 #define CURRENT_TRANSACTION_VERSION      1
 #define HF_VERSION_ENABLE_N_OUTS         2
 #define TRANSACTION_VERSION_N_OUTS       3
@@ -36,5 +38,24 @@ inline bool is_supported_blob_type(enum BLOB_TYPE blob_type) {
       return true;
     default:
       return false;
+  }
+}
+
+inline bool is_supported_transaction_version(enum BLOB_TYPE blob_type, size_t version) {
+  if (version == 0) {
+    return false;
+  }
+
+  // Keep this bounded to the layouts this parser implements. Future
+  // byte-compatible versions must not be interpreted as an older format.
+  switch (blob_type) {
+    case BLOB_TYPE_CRYPTONOTE_RYO:
+    case BLOB_TYPE_CRYPTONOTE_ZEPHYR:
+    case BLOB_TYPE_CRYPTONOTE_ARQMA:
+      return version <= 3;
+    case BLOB_TYPE_CRYPTONOTE_SALVIUM:
+      return version <= TRANSACTION_VERSION_ENABLE_TOKENS;
+    default:
+      return version <= 2;
   }
 }

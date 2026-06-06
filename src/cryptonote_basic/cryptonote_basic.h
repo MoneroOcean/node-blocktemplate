@@ -450,7 +450,7 @@ namespace cryptonote
       } else if (blob_type == BLOB_TYPE_CRYPTONOTE_SALVIUM) {
 
         VARINT_FIELD(version)
-        if(version == 0 || TRANSACTION_VERSION_ENABLE_TOKENS < version) return false;
+        if(!is_supported_transaction_version(blob_type, version)) return false;
         VARINT_FIELD(unlock_time)
         FIELD(vin_salvium)
         FIELD(vout_salvium)
@@ -492,6 +492,7 @@ namespace cryptonote
       } else {
 
         VARINT_FIELD(version)
+        if(!is_supported_transaction_version(blob_type, version)) return false;
 
         if (version >= static_cast<size_t>(cryptonote_arq::txversion::v3) && (blob_type == BLOB_TYPE_CRYPTONOTE_ARQMA))
         {

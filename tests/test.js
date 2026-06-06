@@ -88,6 +88,173 @@ for (const testCase of cases) {
   });
 }
 
+const realDaemonTransactionVersionBlockCases = [
+  {
+    name: "xmr_v1_height_1000000",
+    blobType: 0,
+    txVersion: 1,
+    expectedBlockId: "a886ef5149902d8342475fee9bb296341b891ac67c4842f47a833f23c00ed721",
+    blob: "0102ad91a6b70509930781258c24007085a407703a6c34b2a560fef7d2c51879fb5622ff3c17d65edc000001fc843d01ffc0843d04dbf28af418021f81f90ac3b38a5136c599f0a5f34585786fe7ed44c0bf3824d799548d2488468088aca3cf0202ae47c917ed0d19d7d31f225be374924c668bb811f9880644266a5431c1bef2f880b081daaf1402bb1c9040d05c870237dea615f82fce937f047ef655be812435ecf1aedb89016380c0f9decfae0102fac6e7c0224d389abcce7bcf982e3fbee87e47e3a442d115e4db9262cfecf67f2b019096dbc5cb0f8f246fd86a5f395361ae82fbb7b7b2a4b6e33c91df1c67489a34020800000002410c25f400"
+  },
+  {
+    name: "xmr_v2_height_2000000",
+    blobType: 0,
+    txVersion: 2,
+    expectedBlockId: "dc2ef85b049311814742f543469e3ec1b8d589e68434d9f220ce41072c69c39e",
+    blob: "0c0cc2faa5f0055b0ad4da7bd13add13136552814aad6b4c32c95d29bf03968dd57f3de6131835ad92000002bc897a01ff80897a01ef9096d9af3b022ee15ed05f71cc4d3dda3d1f3fe7724af90c3dd15e5d1d7886d42639d0cc7be73401f9b95f4fae7e4ce7192b78f9645a25307e93bdc510be558006cf65194d23d18c0211000011eb7f5956130000000000000000000000"
+  },
+  {
+    name: "ryo_v2_height_1",
+    blobType: 4,
+    txVersion: 2,
+    expectedBlockId: null,
+    blob: "0101df92d6c7056eb04b6b8c68049a76206fe2805ede5f7465c03b7112850d3262a067b9914dacbc137abf023d01ff01018080e59a7702b4f7c8318c74fe90d333a74838f2152719a6980838c44859eb18974c533dc9cb2101113a12d7b5e6b3a0d7e97affd1b75481f692abe1d2eb3e90346123d6e74a111f0000"
+  },
+  {
+    name: "ryo_v3_height_1000000",
+    blobType: 4,
+    txVersion: 3,
+    expectedBlockId: "95ebebbb35cc9cefbfcd0794f52403e7ccdad909d6e40aef748c9c8efa709cf0",
+    blob: "0909da81dabe060222d22f1e64fe086b55737104be3e7dd53cccde795398034e72deafe8101a54a647000003fc843d01ffc0843d0180cbabfe830102e87ad3278012c9f0fe4bf48b3d562dce6f70e04bf433c449ac94740b534dc00334011fa3969aec853fa259ee8adb1c0406a776346162ef588f0027543b793da01f9602110000000bcf476c0000000002000007fc000000"
+  },
+  {
+    name: "zeph_v2_height_1",
+    blobType: 13,
+    txVersion: 2,
+    expectedBlockId: "233351919978ff54c657d45ef1fc7298ea4c97779a4cf1f73555db06f71940fa",
+    blob: "0101b48fd1a306f53afd86c39b60858bd5fc9ea9f4b8e688f79c2b0158b211463bb344947305051040603c000000000000000000000000000000000000000000000000023d01ff0102eeeecdd49bd903028cd872775519a780389e4c58eeaef9f22a7fbc0f2c94c4d1aeb1f8f36b7cdc3a045a45504847d6d6dbfdf3180203acb9bc5b4694f2b4f44d1626dace46bd96b3419ac117e9755c2ee5e786e2fd045a455048fa4201e16d530ed647d59880360e7326e3198e43824f487f4c08e71282516abb1971c90158666666666666666666666666666666666666666666666666666666666666660000000000"
+  },
+  {
+    name: "zeph_v3_height_790000",
+    blobType: 13,
+    txVersion: 3,
+    expectedBlockId: "e5306333bab59ecd0eb0d4db0f0ed909133afba41461e9591504ca58bac263be",
+    blob: "0b0bc8a783d1060beb4ea1774aeb50f8959b5e6b0752569f99acd45a5d827edcc347bee6f15ffaff2b0d0060fc4efe46000000a0ce0fa545000000c0cefd97fb020000000fd3a10a030000601ca41a0f010000a0a9efd10c01000000ae63b319030000d0cd68d30903000040f79d92be010000c7d3206a00000000da409fc26ef6217e557e0e574bd941d8eb382f49ebf9bf5798c0770baa97b7fcebf893c6211ce5ed95cf7d7720a0994c6cb0d4835611096db8f07bd98e7ef37703ac9c3001fff09b300193d690a39b7d02bfc56107ce78ca555de003c7ac46ea315aa70de4f91fd564ad793aa6426404d8035a5048db34014e06f7d9bba4692433b0e02f2881bdcf02feb302d20c6ad066ba123978c86cbb02110000000e175a98000000000000000000000000000000"
+  },
+  {
+    name: "xla_v1_height_1",
+    blobType: 14,
+    txVersion: 1,
+    expectedBlockId: "24a4f01ec0874783d63fd6ced2da1e1009941bf379e33426043d55a8d33fee5b",
+    blob: "010ce2f493f9053fa5c8976978f52ad7d8fc3663e902a229a232ef987fc11ca99628366652ba993545efbb013d01ff0101904e0279c85667778b79bdfc242f40c78c94a5e5d5755887652432efc4a7e30bfd1ce82101a9ebcca1ec9b4ff80d0df67c2252b5b604f9c5f96b7ca7cd948c4e20d3602bfa00"
+  },
+  {
+    name: "xla_v2_height_1000000",
+    blobType: 14,
+    txVersion: 2,
+    expectedBlockId: "5d17323d588da6727bdb37ad32bd1454d146cc63f6441b52ee597ede5166566f",
+    blob: "10109eefa2b2060edda949258bd26d0e2404cff0d58040ab2b4645f98aaa855355ad7c88ae87bb4ca26bda05b95a55f807ada486437f72e9530b62898142e79768de2baac7f46ef83f9d0fcd0b9457cb4a5d4d8c369bb0e94417bdc149e997cc7d7da0550dc7a1945ebf0402fc843d01ffc0843d01bfe30a03207ef1d487aa94e10ae656c96fc75b3eeaeb1322fcfab7dfe878b9dd05d43e9bb4210105c0bded24276005cd6a94524f09250427adda0691427bfbbb35f9fe3e79bc900000"
+  },
+  {
+    name: "sal_v2_height_1",
+    blobType: 15,
+    txVersion: 2,
+    expectedBlockId: "b6b45052e7e182ebaeb14ab713db29ad979115e664d766aa0910e325564a27a6",
+    blob: "0101cba994b4061f5f4102fd000d6e4258856f57a0056ef653c56e7e25a6ad13b8bb31db00ee7b6484a8f2020001ff0101bca2b8902e037d361e2f594efafa4ca0bdf1fa79c95d9a2fe4b7db43029b8e8579b827ce47250353414c3c3c21017c29242ed3820b155b1884dd08d2d86f773a243710bc9a42e9f7de7ffecebee601cf888ec40b00020001ff01002301690f880e55c6eb1fa31a7d75f1fa2fd2236716924232ed45c93e2c62da874b020400020000"
+  },
+  {
+    name: "sal_v5_height_500000",
+    blobType: 15,
+    txVersion: 5,
+    expectedBlockId: "364a28d5908e3cb00f5eb7afed485c911af69e67d2f2ea4fc83a242a652e64c9",
+    blob: "0b0be1f4f5d0063b30f884b37d27e3676e45ab5d1f092fcb7abdb445eac3881521d5838c1e4e1815290f00053c01ffa0c21e02c1ffadf90804ed3079acf178aef9de96f9e58449bb0a99f312464fbcecec92e338cc3ee1f3830453414c31ac63cb468f2140a6e5b721f63135228afdb6cf84b2eebc1504f66279df3524b40f624ebc0bf4a2adee38988b12d1ab923905ab6ca32fa9f0090453414c31e328dd1540c612be2da5dae2d151f86312d5e74c0402a2552d644c869f91eb3fd30ad7ffca13b1ec9fc2cc041a1b5c2fb5da88f1f25bd1e339cdd53bed85187524591711e13df373b76df4c61dc9c4b6038af5ae783a020832021406efeb407201c0cc9baf0500053c01ffa0c21e00020200020000"
+  },
+  {
+    name: "arq_v2_height_1",
+    blobType: 16,
+    txVersion: 2,
+    expectedBlockId: "6115a8e9902af15d31d14c698621d54e9bb594b0da053591ec5d1ceb537960ea",
+    blob: "0708f6f88ad90560077b4d5cd49a1278d448c58b6854993d127fcaedbdeab82acff7f7fd86e328f985874c021301ff01018080c39edda6a90d020b90d9013afec274cec5df28d85bb25c817ed575f54de38311da8cfc48b7a133210172028a94f017a886090b9e5814419a8a0aa4c089c992805444af726a582a63290000"
+  },
+  {
+    name: "arq_v3_height_1957265",
+    blobType: 16,
+    txVersion: 3,
+    expectedBlockId: "959fd3ec99371c776c502e73e2b3c27bbef178376d3b160a93461151a8462ecb",
+    blob: "1313b7cd8dd10614ff2a77ff4dcce7900aa62cedfff5058bdf43e59854e564ab18f93ec8ee9871cfb10600030005c1bb77a3bb77a3bb77a3bb77a3bb77a3bb7701ff91bb770580c8afa02502684338e352a9864b95883e34f5f7d2abf3b2153303c542cb1582255ba5756e5c80c8afa025028f94f28b138ef2961c74a740df250e2407e017604ab55ea376ebad06f458210d80bcc1960b02469ec76d0fa84e4fe4bc8de91f1510e2fa1f4a4116b8052f9ca9d07785aabffe80bcc1960b02beb9aa0f95742132cc67f7a04f1af33fe19fd41c0f8cfe2f73bca55e5cc89c4780bcc1960b02f2d09e6009c85b80d2e621283de21ead5357a713231c54755049536d42096c117601cc3796dca54db0728eac0eab578adc9ee3efda29adfc5a01d818237f21c5c76e0211000000046a5dc7020000000000000000000106ff2a10bca5c813c42747f29f3718752d2c85e13665615bfc27c61aef81eb6b72c442b8c2be6b9175211390d4dbf3d3c6b9c8132517335eabbffce8b68da71b360000"
+  }
+];
+
+const existingTransactionVersionBlockCases = [
+  {
+    name: "bloc_existing_fixture",
+    blobType: 1,
+    txVersion: 1,
+    expectedBlockId: null,
+    blob: cases.find((testCase) => testCase.name === "bloc").blob
+  },
+  {
+    name: "msr_existing_fixture",
+    blobType: 6,
+    txVersion: 1,
+    expectedBlockId: null,
+    blob: cases.find((testCase) => testCase.name === "msr").blob
+  },
+  {
+    name: "xmv_existing_fixture",
+    blobType: 8,
+    txVersion: 2,
+    expectedBlockId: null,
+    blob: cases.find((testCase) => testCase.name === "xmv").blob
+  }
+];
+
+const transactionVersionBlockCases = realDaemonTransactionVersionBlockCases
+  .concat(existingTransactionVersionBlockCases);
+
+function findTransactionVersionBlockCase(name) {
+  const testCase = transactionVersionBlockCases.find((candidate) => candidate.name === name);
+  assert(testCase, `missing transaction version fixture ${name}`);
+  return testCase;
+}
+
+test("cryptonote parser accepts supported transaction versions from real block blobs", () => {
+  for (const testCase of transactionVersionBlockCases) {
+    const blob = Buffer.from(testCase.blob, "hex");
+    const converted = blocktemplate.convert_blob(blob, testCase.blobType);
+    const blockId = blocktemplate.get_block_id(blob, testCase.blobType);
+
+    assert(converted.length > 0, `${testCase.name} converted`);
+    assert.strictEqual(blockId.length, 32, `${testCase.name} block id length`);
+    if (testCase.expectedBlockId) {
+      assert.strictEqual(blockId.toString("hex"), testCase.expectedBlockId, `${testCase.name} block id`);
+    }
+  }
+});
+
+const unsupportedTransactionVersionMutationCases = [
+  { name: "xmr_v2_height_2000000", txVersionOffset: 43, unsupportedVersion: 3 },
+  { name: "bloc_existing_fixture", txVersionOffset: 43, unsupportedVersion: 3 },
+  { name: "ryo_v3_height_1000000", txVersionOffset: 43, unsupportedVersion: 4 },
+  { name: "msr_existing_fixture", txVersionOffset: 43, unsupportedVersion: 3 },
+  { name: "xmv_existing_fixture", txVersionOffset: 179, unsupportedVersion: 3 },
+  { name: "zeph_v3_height_790000", txVersionOffset: 187, unsupportedVersion: 4 },
+  { name: "xla_v2_height_1000000", txVersionOffset: 107, unsupportedVersion: 3 },
+  { name: "sal_v5_height_500000", txVersionOffset: 43, unsupportedVersion: 6 },
+  { name: "arq_v3_height_1957265", txVersionOffset: 43, unsupportedVersion: 4 }
+];
+
+test("cryptonote parser rejects unsupported transaction versions in real block blobs", () => {
+  for (const mutationCase of unsupportedTransactionVersionMutationCases) {
+    const testCase = findTransactionVersionBlockCase(mutationCase.name);
+    const blob = Buffer.from(testCase.blob, "hex");
+
+    assert.strictEqual(blob[mutationCase.txVersionOffset], testCase.txVersion, mutationCase.name);
+    blob[mutationCase.txVersionOffset] = mutationCase.unsupportedVersion;
+
+    assert.throws(
+      () => blocktemplate.convert_blob(blob, testCase.blobType),
+      /Failed to parse block/,
+      `${testCase.name} v${mutationCase.unsupportedVersion} convert_blob`
+    );
+    assert.throws(
+      () => blocktemplate.get_block_id(blob, testCase.blobType),
+      /Failed to parse block/,
+      `${testCase.name} v${mutationCase.unsupportedVersion} get_block_id`
+    );
+  }
+});
+
 
 test("convert_blob rejects removed coin-specific blob types", () => {
   const blob = Buffer.from(cases[0].blob, "hex");
@@ -99,6 +266,24 @@ test("convert_blob rejects removed coin-specific blob types", () => {
       /Unsupported blob type/
     );
   }
+});
+
+test("cryptonote parser rejects unsupported future transaction versions", () => {
+  const xmrCase = cases.find((testCase) => testCase.name === "xmr");
+  const blob = Buffer.from(xmrCase.blob, "hex");
+  const minerTxVersionOffset = 43;
+
+  assert.strictEqual(blob[minerTxVersionOffset], 2);
+  blob[minerTxVersionOffset] = 3;
+
+  assert.throws(
+    () => blocktemplate.convert_blob(blob, xmrCase.variant),
+    /Failed to parse block/
+  );
+  assert.throws(
+    () => blocktemplate.get_block_id(blob, xmrCase.variant),
+    /Failed to parse block/
+  );
 });
 
 test("native methods reject non-buffer arguments without aborting", () => {
