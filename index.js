@@ -114,7 +114,7 @@ module.exports.RavenBlockTemplate = function(rpcData, poolAddress) {
     header.writeUInt32BE(rpcData.height, position, 4);                  // height         42-46
     header.write(rpcData.bits, position += 4, 4, 'hex');                // bits           47-50
     header.writeUInt32BE(rpcData.curtime, position += 4, 4, 'hex');     // nTime          51-54
-    header.write('DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD', position += 4, 32, 'hex');                 // merkelRoot     55-87
+    header.write('DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD', position += 4, 32, 'hex');                 // merkleRoot (placeholder, filled in later)
     header.write(rpcData.previousblockhash, position += 32, 32, 'hex'); // prevblockhash  88-120
     header.writeUInt32BE(rpcData.version, position += 32, 4);           // version        121-153
     header = reverseBuffer(header);

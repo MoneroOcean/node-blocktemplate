@@ -18,20 +18,9 @@ function reverseBuffer(buff) {
   return reversed;
 }
 
-function reverseByteOrder(buff) {
-  for (let i = 0; i < 8; i++) buff.writeUInt32LE(buff.readUInt32BE(i * 4), i * 4);
-  return reverseBuffer(buff);
-}
-
 function packInt32LE(num) {
   let buff = Buffer.alloc(4);
   buff.writeInt32LE(num, 0);
-  return buff;
-}
-
-function packInt32BE(num) {
-  let buff = Buffer.alloc(4);
-  buff.writeInt32BE(num, 0);
   return buff;
 }
 
@@ -44,12 +33,6 @@ function packUInt16LE(num) {
 function packUInt32LE(num) {
   let buff = Buffer.alloc(4);
   buff.writeUInt32LE(num, 0);
-  return buff;
-}
-
-function packUInt32BE(num) {
-  let buff = Buffer.alloc(4);
-  buff.writeUInt32BE(num, 0);
   return buff;
 }
 
@@ -368,26 +351,6 @@ function serializeString(s) {
   }
 }
 
-// An exact copy of python's range feature. Written by Tadeck:
-// http://stackoverflow.com/a/8273091
-function range(start, stop, step) {
-  if (typeof stop === 'undefined') {
-    stop = start;
-    start = 0;
-  }
-  if (typeof step === 'undefined') {
-    step = 1;
-  }
-  if ((step > 0 && start >= stop) || (step < 0 && start <= stop)) {
-    return [];
-  }
-  let result = [];
-  for (let i = start; step > 0 ? i < stop : i > stop; i += step) {
-    result.push(i);
-  }
-  return result;
-}
-
 function uint256BufferFromHash(hex) {
   let fromHex = Buffer.from(hex, 'hex');
   if (fromHex.length != 32) {
@@ -397,16 +360,6 @@ function uint256BufferFromHash(hex) {
     fromHex = empty;
   }
   return reverseBuffer(fromHex);
-}
-
-function getTransactionBuffers(txs) {
-  let txHashes = txs.map(function(tx) {
-    if (tx.txid !== undefined) {
-      return uint256BufferFromHash(tx.txid);
-    }
-    return uint256BufferFromHash(tx.hash);
-  });
-  return [null].concat(txHashes);
 }
 
 function sha256(buffer) {
