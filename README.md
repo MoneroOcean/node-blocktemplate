@@ -2,29 +2,36 @@
 
 # node-blocktemplate
 
-Native Node.js block template and blob bindings for MoneroOcean-style pool tooling.
+Native Node.js addon for multichain block templates and block blobs used by MoneroOcean pool backends.
 
 <p>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-BSD--3--Clause%20%2B%20MIT-111111.svg" alt="BSD-3-Clause and MIT"></a>
-  <img src="https://img.shields.io/badge/node-%3E%3D18-111111.svg" alt="Node 18+">
-  <img src="https://img.shields.io/badge/platform-Linux%20%7C%20macOS-111111.svg" alt="Linux and macOS">
-  <img src="https://img.shields.io/badge/focus-block%20templates-111111.svg" alt="Block templates">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-BSD--3--Clause%20AND%20MIT-blue.svg" alt="License: BSD-3-Clause AND MIT"></a>
+  <img src="https://img.shields.io/badge/node-%E2%89%A522.9.0-brightgreen.svg" alt="Node >=22.9.0">
+  <img src="https://img.shields.io/badge/platform-Linux%20%7C%20macOS-lightgrey.svg" alt="Linux | macOS">
+  <img src="https://img.shields.io/badge/focus-block%20templates-c2410c.svg" alt="Focus: block templates">
+  <a href="https://github.com/MoneroOcean"><img src="https://img.shields.io/badge/MoneroOcean-ecosystem-6f42c1.svg" alt="MoneroOcean ecosystem"></a>
 </p>
 
 </div>
 
 ## Overview
-`node-blocktemplate` is a native addon for Node.js that focuses on multichain block template handling for pool backends and related infrastructure.
+
+`node-blocktemplate` is a native Node.js addon that handles multichain block template and block blob processing for pool backends and related infrastructure. It pairs a `node-gyp`-built C/C++ core (Cryptonote-family blob conversion, block ID computation, and address decoding) with JavaScript helpers for additional chains.
+
+It is a utility layer for pool software such as [nodejs-pool](https://github.com/MoneroOcean/nodejs-pool). It is not a standalone miner and ships no CLI tooling.
 
 It provides:
-- native block blob conversion and block ID helpers for Cryptonote-family templates
-- legacy merged-mining export compatibility stubs
-- address prefix decoding helpers
-- JavaScript-side helpers for Raven, RTM, KCN, Dero, ETH, and ERG-oriented template handling
 
-The current test suite covers supported conversion vectors for ARQ, BLOC, MSR, RYO, SAL, XLA, XMR, XMV, and ZEPH; retired blob-type rejection; and RTM coinbase handling.
+- native block blob conversion and block ID helpers for Cryptonote-family templates
+- solved-block blob reconstruction from a template and nonce
+- standard and integrated address prefix decoding helpers
+- legacy merged-mining export compatibility stubs
+- JavaScript-side helpers for Raven/KawPow, RTM/Ghostrider, KCN, Dero, ETH, and ERG template handling
+
+The test suite covers supported conversion vectors for ARQ, BLOC, MSR, RYO, SAL, XLA, XMR, XMV, and ZEPH; retired blob-type rejection; and RTM coinbase handling.
 
 ## Install
+
 From GitHub:
 
 ```bash
@@ -39,14 +46,15 @@ npm test
 ```
 
 > Build notes
-> - Node.js `>=18`
-> - Linux and macOS are the intended CI platforms
+> - Node.js `>=22.9.0` and npm `>=11.10.0` (see `engines` in `package.json`)
+> - Linux and macOS only (`darwin`, `linux`)
 > - The addon builds locally with `node-gyp`, so you need Python 3, `make`, and a working C/C++ toolchain
-> - Boost headers, `boost_date_time`, and `libsodium` headers are required
+> - Boost headers and `boost_date_time` are required (linked as `-lboost_date_time`)
 > - Non-ARM builds use `-march=native`, so build on the target CPU class or inside a compatible build image
 > - No prebuilt binaries are shipped in this repository
 
 ## Quick Start
+
 ```js
 const blocktemplate = require("node-blocktemplate");
 
@@ -62,8 +70,10 @@ const nextRtmBlob = blocktemplate.constructNewRtmBlob(
 
 Exact, vector-backed usage examples live in [`tests/test.js`](tests/test.js).
 
-## API At A Glance
-### Native Exports
+## API
+
+### Native exports
+
 | Method | Returns | Notes |
 | --- | --- | --- |
 | `convert_blob(blockBuffer, blobType?)` | `Buffer` | Converts a block template into the hashing blob used by miners. |
@@ -75,7 +85,8 @@ Exact, vector-backed usage examples live in [`tests/test.js`](tests/test.js).
 | `construct_mm_parent_block_blob(parentTemplate, blobType, childTemplate)` | throws | Legacy export; merged-mining block construction is unsupported. |
 | `construct_mm_child_block_blob(parentShare, blobType, childTemplate)` | throws | Legacy export; merged-mining block construction is unsupported. |
 
-### JavaScript Helpers
+### JavaScript helpers
+
 | Method | Returns | Notes |
 | --- | --- | --- |
 | `baseDiff()` | `BigInt-like value` | Shared base difficulty helper. |
@@ -94,21 +105,36 @@ Exact, vector-backed usage examples live in [`tests/test.js`](tests/test.js).
 | `constructNewRtmBlob(templateBuffer, nonceBuffer)` | `Buffer` | Updates an RTM block template with a nonce. |
 | `constructNewKcnBlob(templateBuffer, nonceBuffer)` | `Buffer` | Updates a KCN block template with a nonce. |
 
-## Supported Paths
+### Supported paths
+
 - Cryptonote-family blob conversion and solved-block reconstruction through the native addon
 - Prefix decoding for standard and integrated Cryptonote-family addresses
 - JavaScript helpers for Raven/KawPow, RTM/Ghostrider, KCN, Dero, ETH, and ERG pool integration
 
-This repository is a utility layer for pool software and infrastructure. It is not a full miner and does not ship standalone CLI tooling.
-
 ## Testing
+
 | Command | What it does |
 | --- | --- |
-| `npm test` | Runs the active blob conversion and RTM handling suite. This is the path used in GitHub Actions. |
+| `npm test` | Runs the blob conversion and RTM handling suite via the Node test runner (`node --test`). |
 
-GitHub Actions runs the fast suite only, on Linux and macOS, with the same small Node matrix shape used by `node-pow-hashing`: Node 18, Node 24, and the runner's system Node where useful.
+`npm test` runs a `pretest` step (`tests/ensure-build.js`) that installs runtime dependencies and builds the native addon if `build/Release/blocktemplate.node` is missing, so the first run requires the full C/C++ toolchain and Boost (see Install build notes). GitHub Actions runs this suite on Linux and macOS.
+
+## MoneroOcean ecosystem
+
+| Component | Role |
+| --- | --- |
+| [nodejs-pool](https://github.com/MoneroOcean/nodejs-pool) | Pool backend — stratum, share storage, payments |
+| [mo-pool-ui](https://github.com/MoneroOcean/mo-pool-ui) | Static web frontend for the pool |
+| [xmr-node-proxy](https://github.com/MoneroOcean/xmr-node-proxy) | Stratum proxy / share aggregator |
+| [mo-miner](https://github.com/MoneroOcean/mo-miner) | MoneroOcean end-user CPU/GPU mining client (multi-algo) |
+| [multi-miner](https://github.com/MoneroOcean/multi-miner) | Multi-algo miner manager |
+| [node-powhash](https://github.com/MoneroOcean/node-powhash) | Native multi-algo PoW hashing addon |
+| [node-randomx](https://github.com/MoneroOcean/node-randomx) | Native RandomX hashing addon |
+| [node-blocktemplate](https://github.com/MoneroOcean/node-blocktemplate) | Native block-template & serialization addon |
+| [grpc-json-proxy](https://github.com/MoneroOcean/grpc-json-proxy) | gRPC ↔ JSON-RPC proxy (Tari base node) |
 
 ## Contributors
+
 1. [MoneroOcean](https://github.com/MoneroOcean) for the long-running maintenance branch, multi-chain pool support, and most of the current repository direction
 2. Lucas Jones / `lucas` for the original addon and early block/blob plumbing that the project still builds on
 3. `clintar` for early follow-up maintenance and project evolution
@@ -120,3 +146,7 @@ GitHub Actions runs the fast suite only, on Linux and macOS, with the same small
 9. [ZephyrProtocol](https://github.com/ZephyrProtocol) for Zephyr-specific support in the repo history
 10. `xmvdev` for MoneroV-related support in the repository history
 11. `Ghost-ai-cpu` for follow-up maintenance contributions
+
+## License
+
+Released under the BSD-3-Clause AND MIT licenses. See [LICENSE](LICENSE).
