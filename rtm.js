@@ -401,7 +401,9 @@ function addressToScript(addr) {
   let decoded;
   try {
     decoded = decodeBase58Check(addr);
-  } catch(_err) {}
+  } catch(_err) {
+    // not base58check; fall through to try bech32 decoding below
+  }
   if (!decoded || decoded.length != 25) {
     let decoded2;
     try {
