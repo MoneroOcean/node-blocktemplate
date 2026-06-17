@@ -180,7 +180,7 @@ function update_merkle_root_hash(offset, payload, blob_in, blob_out, transaction
       let parsed;
       try {
         parsed = rtm.readTransaction(blob_in, offset, true);
-      } catch (err) {
+      } catch (_err) {
         throw new Error('Unable to parse transaction from block template');
       }
       if (!parsed || parsed.offset <= offset || parsed.offset > blob_in.length) {

@@ -98,7 +98,7 @@ function readSlice(buffer, offset, size, context) {
   };
 }
 
-function readTxVarInt(buffer, offset, context) {
+function readTxVarInt(buffer, offset, _context) {
   const parsed = readVarInt(buffer, offset);
   return {
     value: parsed.value,
@@ -264,7 +264,7 @@ function canReadTransactionAt(buffer, offset, readPayload) {
   try {
     const parsed = readTransaction(buffer, offset, readPayload);
     return parsed.offset > offset && parsed.offset <= buffer.length;
-  } catch (err) {
+  } catch (_err) {
     return false;
   }
 }
@@ -401,12 +401,12 @@ function addressToScript(addr) {
   let decoded;
   try {
     decoded = decodeBase58Check(addr);
-  } catch(err) {}
+  } catch(_err) {}
   if (!decoded || decoded.length != 25) {
     let decoded2;
     try {
       decoded2 = Buffer.from(bech32.bech32.fromWords(bech32.bech32.decode(addr).words.slice(1)));
-    } catch(err) {
+    } catch(_err) {
       throw new Error('Invalid address');
     }
     if (decoded2.length != 20) throw new Error('Invalid address');
@@ -566,7 +566,7 @@ module.exports.RtmBlockTemplate = function(rpcData, poolAddress) {
       try {
         txBuffer = decodeRtmTransactionData(tx);
         validateRtmTransaction(txBuffer);
-      } catch(err) {
+      } catch(_err) {
         console.error("Skip RTM tx due to parse error: " + describeRtmTransaction(tx));
         return; // skip transaction if it is not parsed OK (varint coding seems to be different for RTM)
       }

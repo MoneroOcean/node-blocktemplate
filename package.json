@@ -12,6 +12,7 @@
     "src"
   ],
   "scripts": {
+    "lint": "eslint .",
     "pretest": "node tests/ensure-build.js",
     "test": "node --test --test-reporter=spec tests/test.js"
   },
@@ -58,5 +59,9 @@
     "rtm",
     "salvium",
     "zephyr"
-  ]
+  ],
+  "devDependencies": {
+    "eslint": "^9.39.4",
+    "globals": "^17.6.0"
+  }
 }

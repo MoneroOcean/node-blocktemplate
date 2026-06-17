@@ -25,7 +25,7 @@ function parsePositiveBigInt(value, base, label = "value") {
   let parsed;
   try {
     parsed = parseBigInt(value, base);
-  } catch (err) {
+  } catch (_err) {
     throw new Error(`Invalid ${label}`);
   }
   if (parsed <= 0n) throw new Error(`Invalid ${label}`);
