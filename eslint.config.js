@@ -6,6 +6,23 @@ module.exports = [
   js.configs.recommended,
   {
     files: ["**/*.js"],
+    rules: {
+      "no-throw-literal": "error",
+      "default-case-last": "error",
+      "no-unused-expressions": "error",
+      "no-var": "error",
+      "no-else-return": "error",
+      "prefer-const": "error",
+      "eqeqeq": ["error", "always", { "null": "ignore" }],
+      "no-implicit-coercion": "error",
+      "object-shorthand": "error",
+      "prefer-template": "error",
+      "no-shadow": "error",
+      "no-param-reassign": "error"
+    }
+  },
+  {
+    files: ["**/*.js"],
     languageOptions: {
       ecmaVersion: 2023,
       sourceType: "commonjs",

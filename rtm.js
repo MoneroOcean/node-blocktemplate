@@ -13,25 +13,25 @@ const MAX_RTM_TRANSACTION_BYTES = 1024 * 1024;
 const MAX_RTM_TEMPLATE_TRANSACTION_BYTES = 64 * 1024 * 1024;
 
 function reverseBuffer(buff) {
-  let reversed = Buffer.alloc(buff.length);
+  const reversed = Buffer.alloc(buff.length);
   for (let i = buff.length - 1; i >= 0; i--) reversed[buff.length - i - 1] = buff[i];
   return reversed;
 }
 
 function packInt32LE(num) {
-  let buff = Buffer.alloc(4);
+  const buff = Buffer.alloc(4);
   buff.writeInt32LE(num, 0);
   return buff;
 }
 
 function packUInt16LE(num) {
-  let buff = Buffer.alloc(2);
+  const buff = Buffer.alloc(2);
   buff.writeUInt16LE(num, 0);
   return buff;
 }
 
 function packUInt32LE(num) {
-  let buff = Buffer.alloc(4);
+  const buff = Buffer.alloc(4);
   buff.writeUInt32LE(num, 0);
   return buff;
 }
@@ -42,7 +42,7 @@ function isValidSatoshisAmount(amount) {
 
 function packInt64LE(num){
   if (!isValidSatoshisAmount(num)) throw new Error('Invalid transaction amount');
-  let buff = Buffer.alloc(8);
+  const buff = Buffer.alloc(8);
   buff.writeUInt32LE(num % Math.pow(2, 32), 0);
   buff.writeUInt32LE(Math.floor(num / Math.pow(2, 32)), 4);
   return buff;
@@ -54,21 +54,21 @@ function varIntBuffer(n) {
   if (n < 0xfd) {
     return Buffer.from([n]);
   } else if (n <= 0xffff) {
-    let buff = Buffer.alloc(3);
+    const buff = Buffer.alloc(3);
     buff[0] = 0xfd;
     buff.writeUInt16LE(n, 1);
     return buff;
   } else if (n <= 0xffffffff) {
-    let buff = Buffer.alloc(5);
+    const buff = Buffer.alloc(5);
     buff[0] = 0xfe;
     buff.writeUInt32LE(n, 1);
     return buff;
-  } else{
-    let buff = Buffer.alloc(9);
+  } 
+    const buff = Buffer.alloc(9);
     buff[0] = 0xff;
     packUInt16LE(n).copy(buff, 1);
     return buff;
-  }
+  
 }
 
 function readVarInt(buffer, offset) {
@@ -91,7 +91,7 @@ function readVarInt(buffer, offset) {
 }
 
 function readSlice(buffer, offset, size, context) {
-  if (offset + size > buffer.length) throw new Error('Unexpected end of RTM transaction' + (context ? ': ' + context : ''));
+  if (offset + size > buffer.length) throw new Error(`Unexpected end of RTM transaction${  context ? `: ${  context}` : ''}`);
   return {
     value: buffer.slice(offset, offset + size),
     offset: offset + size
@@ -118,7 +118,7 @@ function readVarSlice(buffer, offset, context) {
 function readWitnessVector(buffer, offset) {
   const count = readTxVarInt(buffer, offset, 'witness item count');
   let nextOffset = count.offset;
-  let vector = [];
+  const vector = [];
   for (let i = 0; i < count.value; i++) {
     const item = readVarSlice(buffer, nextOffset, 'witness item');
     vector.push(item.value);
@@ -145,22 +145,22 @@ function isCoinbaseHash(hash) {
 
 function createParsedTransaction(version, ins, outs, payload, rawWithWitness, rawNoWitness) {
   return {
-    version: version,
-    ins: ins,
-    outs: outs,
-    payload: payload,
+    version,
+    ins,
+    outs,
+    payload,
     _rawWithWitness: rawWithWitness,
     _rawNoWitness: rawNoWitness,
-    hasWitnesses: function() {
+    hasWitnesses() {
       return hasWitnesses(this);
     },
-    isCoinbase: function() {
+    isCoinbase() {
       return this.ins.length === 1 && isCoinbaseHash(this.ins[0].hash);
     },
-    byteLength: function(allowWitness) {
+    byteLength(allowWitness) {
       return this.__toBuffer(undefined, undefined, allowWitness).length;
     },
-    __toBuffer: function(_buffer, _initialOffset, allowWitness) {
+    __toBuffer(_buffer, _initialOffset, allowWitness) {
       return allowWitness && this.hasWitnesses() ? this._rawWithWitness : this._rawNoWitness;
     }
   };
@@ -172,7 +172,8 @@ function isSupportedRtmTransactionVersion(version) {
   return txVersion >= 1 && txVersion <= 3 && (txVersion >= 3 || txType === 0);
 }
 
-function readTransaction(buffer, offset, readPayload) {
+function readTransaction(buffer, offsetArg, readPayload) {
+  let offset = offsetArg;
   const start = offset;
   const versionSlice = readSlice(buffer, offset, 4, 'version');
   const version = versionSlice.value.readInt32LE(0);
@@ -192,7 +193,7 @@ function readTransaction(buffer, offset, readPayload) {
 
   const inputCount = readTxVarInt(buffer, offset, 'input count');
   offset = inputCount.offset;
-  let ins = [];
+  const ins = [];
   for (let i = 0; i < inputCount.value; i++) {
     const hash = readSlice(buffer, offset, 32, 'input hash');
     const index = readSlice(buffer, hash.offset, 4, 'input index');
@@ -210,7 +211,7 @@ function readTransaction(buffer, offset, readPayload) {
 
   const outputCount = readTxVarInt(buffer, offset, 'output count');
   offset = outputCount.offset;
-  let outs = [];
+  const outs = [];
   for (let i = 0; i < outputCount.value; i++) {
     const value = readSlice(buffer, offset, 8, 'output value');
     const script = readVarSlice(buffer, value.offset, 'output script');
@@ -254,7 +255,7 @@ function readTransaction(buffer, offset, readPayload) {
 
   return {
     transaction: createParsedTransaction(version, ins, outs, payload, rawWithWitness, rawNoWitness),
-    offset: offset
+    offset
   };
 }
 
@@ -324,11 +325,12 @@ module.exports.extendTransactionRaw = extendTransactionRaw;
 // https://github.com/bitcoin/bips/blob/master/bip-0034.mediawiki#specification
 // Used to format height and date when putting into script signature:
 // https://en.bitcoin.it/wiki/Script
-function serializeNumber(n) {
+function serializeNumber(nArg) {
+  let n = nArg;
   // New version from TheSeven
   if (n >= 1 && n <= 16) return Buffer.from([0x50 + n]);
-  var l = 1;
-  var buff = Buffer.alloc(9);
+  let l = 1;
+  const buff = Buffer.alloc(9);
   while (n > 0x7f) {
       buff.writeUInt8(n & 0xff, l++);
       n >>= 8;
@@ -346,15 +348,15 @@ function serializeString(s) {
     return Buffer.concat([ Buffer.from([253]), packUInt16LE(s.length), Buffer.from(s) ]);
   } else if (s.length < 0x100000000) {
     return Buffer.concat([ Buffer.from([254]), packUInt32LE(s.length), Buffer.from(s) ]);
-  } else {
+  } 
     return Buffer.concat([ Buffer.from([255]), packUInt16LE(s.length), Buffer.from(s) ]);
-  }
+  
 }
 
 function uint256BufferFromHash(hex) {
   let fromHex = Buffer.from(hex, 'hex');
-  if (fromHex.length != 32) {
-    let empty = Buffer.alloc(32);
+  if (fromHex.length !== 32) {
+    const empty = Buffer.alloc(32);
     empty.fill(0);
     fromHex.copy(empty);
     fromHex = empty;
@@ -380,7 +382,7 @@ function decodeBase58Check(value) {
   }
 
   let hex = num.toString(16);
-  if (hex.length % 2 !== 0) hex = '0' + hex;
+  if (hex.length % 2 !== 0) hex = `0${  hex}`;
   let decoded = hex === '00' ? Buffer.alloc(0) : Buffer.from(hex, 'hex');
 
   let leadingZeros = 0;
@@ -404,26 +406,27 @@ function addressToScript(addr) {
   } catch(_err) {
     // not base58check; fall through to try bech32 decoding below
   }
-  if (!decoded || decoded.length != 25) {
+  if (!decoded || decoded.length !== 25) {
     let decoded2;
     try {
       decoded2 = Buffer.from(bech32.bech32.fromWords(bech32.bech32.decode(addr).words.slice(1)));
     } catch(_err) {
       throw new Error('Invalid address');
     }
-    if (decoded2.length != 20) throw new Error('Invalid address');
+    if (decoded2.length !== 20) throw new Error('Invalid address');
     return Buffer.concat([Buffer.from([0x0, 0x14]), decoded2]);
   }
   const pubkey = decoded.slice(1, -4);
   return Buffer.concat([Buffer.from([0x76, 0xa9, 0x14]), pubkey, Buffer.from([0x88, 0xac])]);
 }
 
-function createTransactionOutput(amount, payee, rewardToPool, reward, txOutputBuffers, payeeScript) {
+function createTransactionOutput(amount, payee, rewardToPool, reward, txOutputBuffers, payeeScriptArg) {
   if (!isValidSatoshisAmount(amount) || amount > rewardToPool || amount > reward) {
     throw new Error('Invalid payout amount');
   }
 
   const payeeReward = amount;
+  let payeeScript = payeeScriptArg;
   if (!payeeScript) payeeScript = addressToScript(payee);
   txOutputBuffers.push(Buffer.concat([
     packInt64LE(payeeReward),
@@ -450,7 +453,7 @@ function hasValidCoinbaseDevReward(rpcData) {
 function generateTransactionOutputs(rpcData, poolAddress, hasDevReward) {
   let reward       = rpcData.coinbasevalue + (hasDevReward ? rpcData.coinbasedevreward.value : 0);
   let rewardToPool = reward;
-  let txOutputBuffers = [];
+  const txOutputBuffers = [];
 
   if (hasDevReward) {
     const rewards = createTransactionOutput(rpcData.coinbasedevreward.value, null, rewardToPool, reward, txOutputBuffers, Buffer.from(rpcData.coinbasedevreward.scriptpubkey, 'hex'));
@@ -464,7 +467,7 @@ function generateTransactionOutputs(rpcData, poolAddress, hasDevReward) {
       reward        = rewards.reward;
       rewardToPool  = rewards.rewardToPool;
     } else if (Array.isArray(rpcData.smartnode)) {
-      for (let i in rpcData.smartnode) {
+      for (const i in rpcData.smartnode) {
         const rewards = createTransactionOutput(rpcData.smartnode[i].amount, rpcData.smartnode[i].payee, rewardToPool, reward, txOutputBuffers);
 	reward        = rewards.reward;
         rewardToPool  = rewards.rewardToPool;
@@ -473,7 +476,7 @@ function generateTransactionOutputs(rpcData, poolAddress, hasDevReward) {
   }
 
   if (rpcData.superblock) {
-    for (let i in rpcData.superblock) {
+    for (const i in rpcData.superblock) {
       const rewards = createTransactionOutput(rpcData.superblock[i].amount, rpcData.superblock[i].payee, rewardToPool, reward, txOutputBuffers);
       reward        = rewards.reward;
       rewardToPool  = rewards.rewardToPool;
@@ -551,32 +554,32 @@ module.exports.RtmBlockTemplate = function(rpcData, poolAddress) {
   const prev_hash = reverseBuffer(Buffer.from(rpcData.previousblockhash, 'hex')).toString('hex');
   const version = packInt32LE(rpcData.version).toString('hex');
   const curtime = packUInt32LE(rpcData.curtime).toString('hex');
-  let bits = Buffer.from(rpcData.bits, 'hex');
+  const bits = Buffer.from(rpcData.bits, 'hex');
   bits.writeUInt32LE(bits.readUInt32BE());
   if (!Array.isArray(rpcData.transactions)) throw new Error('Invalid RTM transactions');
   if (rpcData.transactions.length > MAX_RTM_TEMPLATE_TRANSACTIONS) throw new Error('Too many RTM transactions');
 
-  let txs = [];
+  const txs = [];
   let txBytes = 0;
   // skip version 1 transaction because they contain some OP_RETURN(0x6A) opcode in the beginning of
   // tx input scripts instead of size of script part so not sure how to parse them
   // just drop them for now
   // example: https://explorer.raptoreum.com/tx/1461d70fa8362b0896e2e9be6312521f2684f22c9b0f9152695f33f67d9f9d3f
   rpcData.transactions.forEach(function(tx) {
-    if (tx.version != 1) {
+    if (tx.version !== 1) {
       let txBuffer;
       try {
         txBuffer = decodeRtmTransactionData(tx);
         validateRtmTransaction(txBuffer);
       } catch(_err) {
-        console.error("Skip RTM tx due to parse error: " + describeRtmTransaction(tx));
+        console.error(`Skip RTM tx due to parse error: ${  describeRtmTransaction(tx)}`);
         return; // skip transaction if it is not parsed OK (varint coding seems to be different for RTM)
       }
       txBytes += txBuffer.length;
       if (txBytes > MAX_RTM_TEMPLATE_TRANSACTION_BYTES) throw new Error('RTM transaction data is too large');
       txs.push(txBuffer);
     } else {
-      console.error("Skip RTM v1 tx: " + describeRtmTransaction(tx));
+      console.error(`Skip RTM v1 tx: ${  describeRtmTransaction(tx)}`);
     }
   });
   const txn = varIntBuffer(txs.length + 1);
@@ -584,7 +587,7 @@ module.exports.RtmBlockTemplate = function(rpcData, poolAddress) {
   return {
     difficulty:         difficultyToFloat(diff1, rpcData.target, 16, 'RTM target'),
     height:             rpcData.height,
-    prev_hash:          prev_hash,
+    prev_hash,
     blocktemplate_blob: version + prev_hash + Buffer.alloc(32, 0).toString('hex') + curtime + bits.toString('hex') + Buffer.alloc(4, 0).toString('hex') +
                         txn.toString('hex') + blob1.toString('hex') + Buffer.alloc(extraNoncePlaceholderLength, 0xCC).toString('hex') + blob2.toString('hex')  +
                         Buffer.concat(txs).toString('hex'),

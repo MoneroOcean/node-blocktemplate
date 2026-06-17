@@ -386,8 +386,8 @@ test("convertRtmBlob handles RTM coinbase payload", () => {
 });
 
 const rtmSpecialTxHex = "0300020001f189c058fc197826cec441160f8395be58f6934661c2f6054a067cd25a050749470000006a473044022001b0264312ef5f1c7f8c6843f31b625fc76c2e5848ded7ae8b94158b4166c831022045a093291ceb88adaf51d71e2329b95a6d6ac64a9fed32e85c9eecf317e3cf400121023b91003cc79ca481f3b54d2e55fb3a34cf25c7985a3c1d15ae8b2883d2488a45feffffff012ac89a3b000000001976a91426d6b7e9fc7dbbff032671e6428cb9fe5775cf1d88ac00000000b50100ace0340b5fc4ace3961a901b6855b4ddc041d558b64332ca4c72d74b084b02f100000000000000000000ffff4ebbb50227f200a03b94374a8f31ea85034739c37179fc99544bd35a3b4266d5ebc043a06df114839a7e28a7a7d608e8e4a0a7f6f9b904223f639ffa678fa40e9bd14c7e76bd07be2033e213ce8d558b9761baa2b62c4e06e740236a5ec15c6b61ba39a19d5bc6b813440a424976c0da7e7ecd47084f812f7c19381e76300da0d65189d36dc313";
-const rtmQuorumCommitmentTxHex = "03000600000000000000fd0401" + "aa".repeat(260);
-const rtmNormalTxHex = "0200000001" + "11".repeat(32) + "000000000151feffffff01e803000000000000015100000000";
+const rtmQuorumCommitmentTxHex = `03000600000000000000fd0401${  "aa".repeat(260)}`;
+const rtmNormalTxHex = `0200000001${  "11".repeat(32)  }000000000151feffffff01e803000000000000015100000000`;
 
 function hash256(buffer) {
   const first = crypto.createHash("sha256").update(buffer).digest();
@@ -432,7 +432,7 @@ test("RtmBlockTemplate rejects invalid RTM coinbase dev rewards", () => {
 });
 
 test("RtmBlockTemplate rejects overlong payout addresses without echoing input", () => {
-  const payee = "R" + "A".repeat(256);
+  const payee = `R${  "A".repeat(256)}`;
   assert.throws(
     () => buildRtmTemplate([], {
       smartnode: { amount: 1, payee }
@@ -639,7 +639,7 @@ test("convertRtmBlob uses txid merkle root for RTM witness coinbase", () => {
 
   try {
     const template = buildRtmTemplate([], {
-      default_witness_commitment: "6a24aa21a9ed" + "00".repeat(32)
+      default_witness_commitment: `6a24aa21a9ed${  "00".repeat(32)}`
     });
     const blob = Buffer.from(template.blocktemplate_blob, "hex");
     const header = blocktemplateJs.convertRtmBlob(blob);
@@ -735,7 +735,7 @@ test("block template difficulty rejects invalid targets and uses exact scaled Ra
     /Invalid Raven target/
   );
   assert.throws(
-    () => blocktemplateJs.EthBlockTemplate(["0x" + "11".repeat(32), "0x" + "22".repeat(32), "0x0", "1"]),
+    () => blocktemplateJs.EthBlockTemplate([`0x${  "11".repeat(32)}`, `0x${  "22".repeat(32)}`, "0x0", "1"]),
     /Invalid ETH target/
   );
   assert.throws(

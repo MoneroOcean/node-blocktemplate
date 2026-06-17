@@ -22,8 +22,8 @@ function scriptCompile(addrHash) {
 }
 
 function reverseBuffer(buff) {
-  let reversed = Buffer.alloc(buff.length);
-  for (var i = buff.length - 1; i >= 0; i--) reversed[buff.length - i - 1] = buff[i];
+  const reversed = Buffer.alloc(buff.length);
+  for (let i = buff.length - 1; i >= 0; i--) reversed[buff.length - i - 1] = buff[i];
   return reversed;
 }
 
@@ -73,17 +73,17 @@ module.exports.baseRavenDiff = function() {
 module.exports.RavenBlockTemplate = function(rpcData, poolAddress) {
   const poolAddrHash = bitcoin.address.fromBase58Check(poolAddress).hash;
 
-  let txCoinbase = new bitcoin.Transaction();
+  const txCoinbase = new bitcoin.Transaction();
   let bytesHeight;
   { // input for coinbase tx
     let blockHeightSerial = rpcData.height.toString(16).length % 2 === 0 ?
                                   rpcData.height.toString(16) :
-                            '0' + rpcData.height.toString(16);
+                            `0${  rpcData.height.toString(16)}`;
     bytesHeight = Math.ceil((rpcData.height << 1).toString(2).length / 8);
     const lengthDiff  = blockHeightSerial.length/2 - bytesHeight;
-    for (let i = 0; i < lengthDiff; i++) blockHeightSerial = blockHeightSerial + '00';
+    for (let i = 0; i < lengthDiff; i++) blockHeightSerial = `${blockHeightSerial  }00`;
     const serializedBlockHeight = Buffer.concat([
-      Buffer.from('0' + bytesHeight, 'hex'),
+      Buffer.from(`0${  bytesHeight}`, 'hex'),
       reverseBuffer(Buffer.from(blockHeightSerial, 'hex')),
       Buffer.from('00', 'hex') // OP_0
     ]);
@@ -136,7 +136,7 @@ module.exports.RavenBlockTemplate = function(rpcData, poolAddress) {
   const EPOCH_LENGTH = 7500;
   const epoch_number = Math.floor(rpcData.height / EPOCH_LENGTH);
   if (last_epoch_number !== epoch_number) {
-    let sha3 = new SHA3.SHA3Hash(256);
+    const sha3 = new SHA3.SHA3Hash(256);
     if (last_epoch_number && last_epoch_number + 1 === epoch_number) {
       last_seed_hash = sha3.update(last_seed_hash).digest();
     } else {
@@ -157,20 +157,21 @@ module.exports.RavenBlockTemplate = function(rpcData, poolAddress) {
     reserved_offset:    offset1 + 4 /* txCoinbase.version */ + 1 /* vinLen */  + 32 /* hash */ + 4 /* index  */ +
                         1 /* vScript len */ + 1 /* coinbase height len */ + bytesHeight + 1 /* trailing zero byte */,
     seed_hash:          last_seed_hash.toString('hex'),
-    difficulty:         difficulty,
+    difficulty,
     height:             rpcData.height,
     bits:               rpcData.bits,
     prev_hash:          rpcData.previousblockhash,
   };
 };
 
-function update_merkle_root_hash(offset, payload, blob_in, blob_out, transaction_hash_func, merkle_hash_func = hash256) {
+function update_merkle_root_hash(offsetArg, payload, blob_in, blob_out, transaction_hash_func, merkle_hash_func = hash256) {
+  let offset = offsetArg;
   const nTransactions = varuint.decode(blob_in, offset);
   offset += varuint.decode.bytes;
   if (nTransactions < 1 || nTransactions > MAX_TEMPLATE_TRANSACTIONS) {
     throw new Error('Invalid transaction count in block template');
   }
-  let transactions = [];
+  const transactions = [];
   for (let i = 0; i < nTransactions; ++i) {
     if (offset >= blob_in.length) {
       throw new Error('Invalid transaction offset in block template');
@@ -216,7 +217,7 @@ module.exports.blockHashBuff3 = function(blobBuffer) {
 };
 
 module.exports.convertRavenBlob = function(blobBuffer) {
-  let header = blobBuffer.slice(0, 80);
+  const header = blobBuffer.slice(0, 80);
   update_merkle_root_hash(80 + 8 + 32, false, blobBuffer, header, transaction_hash);
   return module.exports.blockHashBuff(header);
 };
@@ -238,7 +239,7 @@ module.exports.EthBlockTemplate = function(rpcData) {
   return {
     hash:               rpcData[0].substr(2),
     seed_hash:          rpcData[1].substr(2),
-    difficulty:         difficulty,
+    difficulty,
     height:             parseInt(rpcData[3])
   };
 };
@@ -248,7 +249,7 @@ module.exports.ErgBlockTemplate = function(rpcData) {
   return {
     hash:               rpcData.msg,
     hash2:              rpcData.pk,
-    difficulty:         difficulty,
+    difficulty,
     height:             parseInt(rpcData.h)
   };
 };
@@ -258,13 +259,13 @@ module.exports.RtmBlockTemplate = function(rpcData, poolAddress) {
 };
 
 module.exports.convertRtmBlob = function(blobBuffer) {
-  let header = blobBuffer.slice(0, 80);
+  const header = blobBuffer.slice(0, 80);
   update_merkle_root_hash(80, true, blobBuffer, header, transaction_hash);
   return header;
 };
 
 module.exports.convertKcnBlob = function(blobBuffer) {
-  let header = blobBuffer.slice(0, 80);
+  const header = blobBuffer.slice(0, 80);
   update_merkle_root_hash(80, false, blobBuffer, header, transaction_hash3, hash256_3);
   return header;
 };
