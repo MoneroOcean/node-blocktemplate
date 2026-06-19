@@ -335,8 +335,10 @@ function serializeNumber(nArg) {
   let l = 1;
   const buff = Buffer.alloc(9);
   while (n > 0x7f) {
-      buff.writeUInt8(n & 0xff, l++);
-      n >>= 8;
+      // Unsigned: & 0xff / >>= 8 coerce to signed 32-bit, so n >= 2^31 (e.g. a unix timestamp
+      // after 2038-01-19) wraps negative and writeUInt8 throws. % / Math.floor stay unsigned.
+      buff.writeUInt8(n % 256, l++);
+      n = Math.floor(n / 256);
   }
   buff.writeUInt8(l, 0);
   buff.writeUInt8(n, l++);
@@ -516,7 +518,7 @@ module.exports.RtmBlockTemplate = function(rpcData, poolAddress) {
   const scriptSigPart1 = Buffer.concat([
     serializeNumber(rpcData.height),
     Buffer.from(rpcData.coinbaseaux.flags ? rpcData.coinbaseaux.flags : "", 'hex'),
-    serializeNumber(Date.now() / 1000 | 0),
+    serializeNumber(Math.floor(Date.now() / 1000)),
     Buffer.from([extraNoncePlaceholderLength])
   ]);
 
@@ -555,7 +557,9 @@ module.exports.RtmBlockTemplate = function(rpcData, poolAddress) {
     ]);
   }
 
-  const prev_hash = reverseBuffer(Buffer.from(rpcData.previousblockhash, 'hex')).toString('hex');
+  const prevHashBuf = Buffer.from(rpcData.previousblockhash || '', 'hex');
+  if (prevHashBuf.length !== 32) throw new Error('Invalid RTM previousblockhash');
+  const prev_hash = reverseBuffer(prevHashBuf).toString('hex');
   if (!Number.isInteger(rpcData.version) || rpcData.version < -0x80000000 || rpcData.version > 0x7fffffff) throw new Error('Invalid RTM version');
   const version = packInt32LE(rpcData.version).toString('hex');
   const curtime = packUInt32LE(rpcData.curtime).toString('hex');

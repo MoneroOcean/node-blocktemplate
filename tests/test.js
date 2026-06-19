@@ -445,6 +445,19 @@ test("RtmBlockTemplate rejects nBits that is not exactly 4 bytes", () => {
   assert.throws(() => buildRtmTemplate([], { bits: "1d00ffffaa" }), /Invalid RTM bits/);
 });
 
+test("RtmBlockTemplate serializes a value >= 2^31 without overflow (Y2038-class)", () => {
+  // serializeNumber must stay unsigned: the signed >>=8 / &0xff loop threw RangeError for n >= 2^31
+  // (e.g. a unix timestamp after 2038-01-19). Exercise the same fn via the height push.
+  assert.doesNotThrow(() => buildRtmTemplate([], { height: 0x80000000 }));
+  const t = buildRtmTemplate([], { height: 0x80000000 });
+  assert.ok(typeof t.blocktemplate_blob === "string" && t.blocktemplate_blob.length > 0);
+});
+
+test("RtmBlockTemplate rejects a previousblockhash that is not 32 bytes", () => {
+  // reserved_offset is hardcoded to an 80-byte header (32-byte prev_hash); a wrong length desyncs it
+  assert.throws(() => buildRtmTemplate([], { previousblockhash: "00".repeat(31) }), /Invalid RTM previousblockhash/);
+});
+
 test("RtmBlockTemplate rejects overlong payout addresses without echoing input", () => {
   const payee = `R${  "A".repeat(256)}`;
   assert.throws(

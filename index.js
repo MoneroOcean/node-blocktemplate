@@ -79,7 +79,7 @@ module.exports.RavenBlockTemplate = function(rpcData, poolAddress) {
     let blockHeightSerial = rpcData.height.toString(16).length % 2 === 0 ?
                                   rpcData.height.toString(16) :
                             `0${  rpcData.height.toString(16)}`;
-    bytesHeight = Math.ceil((rpcData.height << 1).toString(2).length / 8);
+    bytesHeight = Math.ceil((rpcData.height * 2).toString(2).length / 8);
     const lengthDiff  = blockHeightSerial.length/2 - bytesHeight;
     for (let i = 0; i < lengthDiff; i++) blockHeightSerial = `${blockHeightSerial  }00`;
     const serializedBlockHeight = Buffer.concat([
