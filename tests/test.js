@@ -458,6 +458,29 @@ test("RtmBlockTemplate rejects a previousblockhash that is not 32 bytes", () => 
   assert.throws(() => buildRtmTemplate([], { previousblockhash: "00".repeat(31) }), /Invalid RTM previousblockhash/);
 });
 
+// a real on-chain RTM version-1 transaction (block 1368417); readTransaction parses it fully
+const RTM_V1_TX = "0100000002ef10336c6a1b271755ced0aa46d08ac90e2ca7dddfa9d8e8ef9a70d6ca8f6a43190000006b483045022100c6ac899f3c6690e1f705bf2bd737a7de9c564b73e3ac3b7215ed0b2843c31f310220674576fe8596c680109a1730c55e5d921343be16338f75a6621768fb32d35964012103fd8c04f7d368f2d1917ca2134844a0eb1a74e5750f4752e363b7a00f9c5d159fffffffff682de1e8e17b8487d878e090ef6f3c2a50d24c5d404809e99dc45c61e5afe62a010000006b483045022100a419a117de3666a436c61192bd4d9e049fc62870b0d276a964ff6c0e08e31b1302203565053376c78ebfed3c882c56a123aeb28e341ff391a07511eb4fd6c86f0ec6012103939b432cd0563a78d11b90e069cc2e8be58d1e7bb13d877ef64ef63b7051782fffffffff01c33fefc24b0100001976a914e76fc3598d3dd8f027312e10b799f2bad96c3b8588ac00000000";
+
+test("RtmBlockTemplate includes a v1 transaction instead of silently dropping it", () => {
+  // dropping a daemon-selected tx desyncs the merkle from the daemon's tx set -> lost found block.
+  // v1 txs are live on RTM and parse correctly; they must be included, not skipped.
+  const t = buildRtmTemplate([{ version: 1, data: RTM_V1_TX }]);
+  assert.ok(t.blocktemplate_blob.includes(RTM_V1_TX), "v1 tx data must be present in the assembled blob");
+});
+
+test("RtmBlockTemplate fails closed on an unparseable transaction (no silent drop)", () => {
+  assert.throws(() => buildRtmTemplate([{ version: 2, data: "00" }]), /Unparseable RTM transaction/);
+});
+
+test("convertRtmBlob walks a v1 transaction in the block body and computes the merkle", () => {
+  // end-to-end: the submit/merkle path (index.js) must parse a v1 tx in the body, not just the
+  // template builder. A real merkle root (non-placeholder) proves the v1 tx was walked + hashed in.
+  const template = buildRtmTemplate([{ version: 1, data: RTM_V1_TX }]);
+  const header = blocktemplateJs.convertRtmBlob(Buffer.from(template.blocktemplate_blob, "hex"));
+  const merkle = header.slice(36, 68);
+  assert.ok(!merkle.equals(Buffer.alloc(32, 0)), "merkle root computed over coinbase + v1 tx");
+});
+
 test("RtmBlockTemplate rejects overlong payout addresses without echoing input", () => {
   const payee = `R${  "A".repeat(256)}`;
   assert.throws(
@@ -479,21 +502,17 @@ test("RtmBlockTemplate limits transaction count", () => {
   );
 });
 
-test("RtmBlockTemplate logs skipped RTM transactions without echoing data", () => {
+test("RtmBlockTemplate rejects an unparseable tx (fail-closed) without echoing its data", () => {
   const txData = "aa".repeat(1024);
-  const originalConsoleError = console.error;
-  const logs = [];
-  console.error = (message) => logs.push(String(message));
-
+  let msg = "";
   try {
     buildRtmTemplate([{ version: 2, data: txData }]);
-  } finally {
-    console.error = originalConsoleError;
+  } catch (e) {
+    msg = String(e.message);
   }
-
-  assert.equal(logs.length, 1);
-  assert.match(logs[0], /1024 byte transaction/);
-  assert.equal(logs[0].includes(txData), false);
+  assert.match(msg, /Unparseable RTM transaction/);
+  assert.match(msg, /1024 byte transaction/);
+  assert.equal(msg.includes(txData), false);
 });
 
 test("readTransaction handles RTM quorum commitment payload boundaries", () => {

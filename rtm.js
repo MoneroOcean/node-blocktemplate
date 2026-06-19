@@ -571,26 +571,23 @@ module.exports.RtmBlockTemplate = function(rpcData, poolAddress) {
 
   const txs = [];
   let txBytes = 0;
-  // skip version 1 transaction because they contain some OP_RETURN(0x6A) opcode in the beginning of
-  // tx input scripts instead of size of script part so not sure how to parse them
-  // just drop them for now
-  // example: https://explorer.raptoreum.com/tx/1461d70fa8362b0896e2e9be6312521f2684f22c9b0f9152695f33f67d9f9d3f
+  // Include EVERY daemon-selected transaction. The block merkle root must cover exactly the daemon's
+  // tx set, so silently dropping a tx yields a self-consistent but wrong-merkle blob whose found
+  // block the daemon rejects -> lost block. readTransaction parses RTM v1/v2/v3 txs correctly
+  // (verified against live v1 txs: full parse + matching txid); the old blanket v1-skip came from
+  // misreading a 0x6a (=106) scriptSig-length byte as OP_RETURN. If a tx genuinely cannot be parsed,
+  // fail closed (throw) so the template is simply not built, rather than mining a doomed block.
   rpcData.transactions.forEach(function(tx) {
-    if (tx.version !== 1) {
-      let txBuffer;
-      try {
-        txBuffer = decodeRtmTransactionData(tx);
-        validateRtmTransaction(txBuffer);
-      } catch(_err) {
-        console.error(`Skip RTM tx due to parse error: ${  describeRtmTransaction(tx)}`);
-        return; // skip transaction if it is not parsed OK (varint coding seems to be different for RTM)
-      }
-      txBytes += txBuffer.length;
-      if (txBytes > MAX_RTM_TEMPLATE_TRANSACTION_BYTES) throw new Error('RTM transaction data is too large');
-      txs.push(txBuffer);
-    } else {
-      console.error(`Skip RTM v1 tx: ${  describeRtmTransaction(tx)}`);
+    let txBuffer;
+    try {
+      txBuffer = decodeRtmTransactionData(tx);
+      validateRtmTransaction(txBuffer);
+    } catch (err) {
+      throw new Error(`Unparseable RTM transaction (${describeRtmTransaction(tx)}): ${err.message}`);
     }
+    txBytes += txBuffer.length;
+    if (txBytes > MAX_RTM_TEMPLATE_TRANSACTION_BYTES) throw new Error('RTM transaction data is too large');
+    txs.push(txBuffer);
   });
   const txn = varIntBuffer(txs.length + 1);
 
