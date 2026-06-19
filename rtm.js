@@ -101,7 +101,7 @@ function readSlice(buffer, offset, size, context) {
   };
 }
 
-function readTxVarInt(buffer, offset, _context) {
+function readTxVarInt(buffer, offset) {
   const parsed = readVarInt(buffer, offset);
   return {
     value: parsed.value,
@@ -110,7 +110,7 @@ function readTxVarInt(buffer, offset, _context) {
 }
 
 function readVarSlice(buffer, offset, context) {
-  const parsed = readTxVarInt(buffer, offset, context);
+  const parsed = readTxVarInt(buffer, offset);
   const slice = readSlice(buffer, parsed.offset, parsed.value, context);
   return {
     value: slice.value,
@@ -119,7 +119,7 @@ function readVarSlice(buffer, offset, context) {
 }
 
 function readWitnessVector(buffer, offset) {
-  const count = readTxVarInt(buffer, offset, 'witness item count');
+  const count = readTxVarInt(buffer, offset);
   let nextOffset = count.offset;
   const vector = [];
   for (let i = 0; i < count.value; i++) {
@@ -194,7 +194,7 @@ function readTransaction(buffer, offsetArg, readPayload) {
     offset += 2;
   }
 
-  const inputCount = readTxVarInt(buffer, offset, 'input count');
+  const inputCount = readTxVarInt(buffer, offset);
   offset = inputCount.offset;
   const ins = [];
   for (let i = 0; i < inputCount.value; i++) {
@@ -212,7 +212,7 @@ function readTransaction(buffer, offsetArg, readPayload) {
     offset = sequence.offset;
   }
 
-  const outputCount = readTxVarInt(buffer, offset, 'output count');
+  const outputCount = readTxVarInt(buffer, offset);
   offset = outputCount.offset;
   const outs = [];
   for (let i = 0; i < outputCount.value; i++) {
