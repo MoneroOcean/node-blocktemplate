@@ -560,7 +560,7 @@ module.exports.RtmBlockTemplate = function(rpcData, poolAddress) {
   const version = packInt32LE(rpcData.version).toString('hex');
   const curtime = packUInt32LE(rpcData.curtime).toString('hex');
   const bits = Buffer.from(rpcData.bits, 'hex');
-  if (bits.length < 4) throw new Error('Invalid RTM bits');
+  if (bits.length !== 4) throw new Error('Invalid RTM bits');
   bits.writeUInt32LE(bits.readUInt32BE());
   if (!Array.isArray(rpcData.transactions)) throw new Error('Invalid RTM transactions');
   if (rpcData.transactions.length > MAX_RTM_TEMPLATE_TRANSACTIONS) throw new Error('Too many RTM transactions');

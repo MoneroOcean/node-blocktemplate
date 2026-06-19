@@ -440,6 +440,11 @@ test("RtmBlockTemplate caps daemon transactions so the encoded total stays withi
   assert.throws(() => buildRtmTemplate(tooMany), /Too many RTM transactions/);
 });
 
+test("RtmBlockTemplate rejects nBits that is not exactly 4 bytes", () => {
+  // a >4-byte bits would silently corrupt the header on the 4-byte byte-swap; require exactly 4 bytes
+  assert.throws(() => buildRtmTemplate([], { bits: "1d00ffffaa" }), /Invalid RTM bits/);
+});
+
 test("RtmBlockTemplate rejects overlong payout addresses without echoing input", () => {
   const payee = `R${  "A".repeat(256)}`;
   assert.throws(
