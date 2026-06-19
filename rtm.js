@@ -509,6 +509,7 @@ module.exports.RtmBlockTemplate = function(rpcData, poolAddress) {
   const hasDevReward = hasValidCoinbaseDevReward(rpcData);
   const coinbaseVersion = hasDevReward ? Buffer.concat([packUInt16LE(1), packUInt16LE(0)]) : Buffer.concat([packUInt16LE(3), packUInt16LE(5)]);
 
+  if (!rpcData.coinbaseaux || typeof rpcData.coinbaseaux !== 'object') throw new Error('Invalid RTM coinbaseaux');
   const scriptSigPart1 = Buffer.concat([
     serializeNumber(rpcData.height),
     Buffer.from(rpcData.coinbaseaux.flags ? rpcData.coinbaseaux.flags : "", 'hex'),
@@ -552,9 +553,11 @@ module.exports.RtmBlockTemplate = function(rpcData, poolAddress) {
   }
 
   const prev_hash = reverseBuffer(Buffer.from(rpcData.previousblockhash, 'hex')).toString('hex');
+  if (!Number.isInteger(rpcData.version) || rpcData.version < -0x80000000 || rpcData.version > 0x7fffffff) throw new Error('Invalid RTM version');
   const version = packInt32LE(rpcData.version).toString('hex');
   const curtime = packUInt32LE(rpcData.curtime).toString('hex');
   const bits = Buffer.from(rpcData.bits, 'hex');
+  if (bits.length < 4) throw new Error('Invalid RTM bits');
   bits.writeUInt32LE(bits.readUInt32BE());
   if (!Array.isArray(rpcData.transactions)) throw new Error('Invalid RTM transactions');
   if (rpcData.transactions.length > MAX_RTM_TEMPLATE_TRANSACTIONS) throw new Error('Too many RTM transactions');
