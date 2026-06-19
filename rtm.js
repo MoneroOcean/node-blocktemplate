@@ -8,7 +8,10 @@ const diff1 = BASE_DIFF;
 const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 const BASE58_INDEXES = new Map(Array.from(BASE58_ALPHABET, (char, index) => [char, index]));
 const MAX_RECOVERABLE_TRANSACTION_TAIL_BYTES = 64;
-const MAX_RTM_TEMPLATE_TRANSACTIONS = 5000;
+// daemon tx count; +1 for the coinbase must stay <= the consumer's 5000 total-tx merkle cap
+// (index.js MAX_TEMPLATE_TRANSACTIONS), else a maximally-full template encodes 5001 and the
+// merkle parser (convertRtmBlob / constructNewRtmBlob) rejects it -> lost block at that size.
+const MAX_RTM_TEMPLATE_TRANSACTIONS = 4999;
 const MAX_RTM_TRANSACTION_BYTES = 1024 * 1024;
 const MAX_RTM_TEMPLATE_TRANSACTION_BYTES = 64 * 1024 * 1024;
 

@@ -431,6 +431,15 @@ test("RtmBlockTemplate rejects invalid RTM coinbase dev rewards", () => {
   }), /Invalid coinbase dev reward/);
 });
 
+test("RtmBlockTemplate caps daemon transactions so the encoded total stays within the merkle cap", () => {
+  // 5000 daemon txs + the coinbase = 5001 encoded, which exceeds the consumer's 5000 total-tx merkle
+  // cap (the prior off-by-one: producer allowed 5000 daemon -> consumer rejected -> lost block).
+  // The producer must now reject at 5000 (cap is 4999 daemon). The gate is a pure .length check,
+  // so dummy entries are sufficient (it throws before any tx is parsed).
+  const tooMany = Array.from({ length: 5000 }, () => ({ data: "00" }));
+  assert.throws(() => buildRtmTemplate(tooMany), /Too many RTM transactions/);
+});
+
 test("RtmBlockTemplate rejects overlong payout addresses without echoing input", () => {
   const payee = `R${  "A".repeat(256)}`;
   assert.throws(
