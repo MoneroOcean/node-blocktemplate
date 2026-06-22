@@ -1,12 +1,11 @@
-const bech32  = require('bech32');
-const bitcoin = require('bitcoinjs-lib');
-const crypto = require('crypto');
-
 const { BASE_DIFF, difficultyToFloat } = require('./bigint');
+const {
+  ADVANCED_TRANSACTION_FLAG,
+  ADVANCED_TRANSACTION_MARKER,
+  addressToScript
+} = require('./bitcoin_utils');
 
 const diff1 = BASE_DIFF;
-const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-const BASE58_INDEXES = new Map(Array.from(BASE58_ALPHABET, (char, index) => [char, index]));
 const MAX_RECOVERABLE_TRANSACTION_TAIL_BYTES = 64;
 // daemon tx count; +1 for the coinbase must stay <= the consumer's 5000 total-tx merkle cap
 // (index.js MAX_TEMPLATE_TRANSACTIONS), else a maximally-full template encodes 5001 and the
@@ -188,8 +187,8 @@ function readTransaction(buffer, offsetArg, readPayload) {
 
   let hasWitnessMarker = false;
   if (offset + 2 <= buffer.length &&
-      buffer[offset] === bitcoin.Transaction.ADVANCED_TRANSACTION_MARKER &&
-      buffer[offset + 1] === bitcoin.Transaction.ADVANCED_TRANSACTION_FLAG) {
+      buffer[offset] === ADVANCED_TRANSACTION_MARKER &&
+      buffer[offset + 1] === ADVANCED_TRANSACTION_FLAG) {
     hasWitnessMarker = true;
     offset += 2;
   }
@@ -369,62 +368,6 @@ function uint256BufferFromHash(hex) {
   return reverseBuffer(fromHex);
 }
 
-function sha256(buffer) {
-  return crypto.createHash('sha256').update(buffer).digest();
-}
-
-const MAX_BASE58_ADDRESS_LENGTH = 128;
-const MAX_BECH32_ADDRESS_LENGTH = 128;
-
-function decodeBase58Check(value) {
-  if (value.length > MAX_BASE58_ADDRESS_LENGTH) throw new Error('Base58 address too long');
-
-  let num = 0n;
-  for (const char of value) {
-    const index = BASE58_INDEXES.get(char);
-    if (index === undefined) throw new Error('Invalid base58 character');
-    num = (num * 58n) + BigInt(index);
-  }
-
-  let hex = num.toString(16);
-  if (hex.length % 2 !== 0) hex = `0${  hex}`;
-  let decoded = hex === '00' ? Buffer.alloc(0) : Buffer.from(hex, 'hex');
-
-  let leadingZeros = 0;
-  while (leadingZeros < value.length && value[leadingZeros] === '1') leadingZeros++;
-  if (leadingZeros > 0) decoded = Buffer.concat([Buffer.alloc(leadingZeros), decoded]);
-
-  if (decoded.length < 5) throw new Error('Invalid base58check payload');
-  const payload = decoded.subarray(0, -4);
-  const checksum = decoded.subarray(-4);
-  const expectedChecksum = sha256(sha256(payload)).subarray(0, 4);
-  if (!crypto.timingSafeEqual(checksum, expectedChecksum)) throw new Error('Invalid base58check checksum');
-  return decoded;
-}
-
-function addressToScript(addr) {
-  if (typeof addr !== 'string') throw new Error('Invalid address');
-  if (addr.length > MAX_BECH32_ADDRESS_LENGTH) throw new Error('Invalid address length');
-  let decoded;
-  try {
-    decoded = decodeBase58Check(addr);
-  } catch(_err) {
-    // not base58check; fall through to try bech32 decoding below
-  }
-  if (!decoded || decoded.length !== 25) {
-    let decoded2;
-    try {
-      decoded2 = Buffer.from(bech32.bech32.fromWords(bech32.bech32.decode(addr).words.slice(1)));
-    } catch(_err) {
-      throw new Error('Invalid address');
-    }
-    if (decoded2.length !== 20) throw new Error('Invalid address');
-    return Buffer.concat([Buffer.from([0x0, 0x14]), decoded2]);
-  }
-  const pubkey = decoded.slice(1, -4);
-  return Buffer.concat([Buffer.from([0x76, 0xa9, 0x14]), pubkey, Buffer.from([0x88, 0xac])]);
-}
-
 function createTransactionOutput(amount, payee, rewardToPool, reward, txOutputBuffers, payeeScriptArg) {
   if (!isValidSatoshisAmount(amount) || amount > rewardToPool || amount > reward) {
     throw new Error('Invalid payout amount');
@@ -495,7 +438,7 @@ function generateTransactionOutputs(rpcData, poolAddress, hasDevReward) {
     rewardToPool  = rewards.rewardToPool;
   }
 
-  createTransactionOutput(rewardToPool, null, rewardToPool, reward, txOutputBuffers, Buffer.from(addressToScript(poolAddress), "hex"));
+  createTransactionOutput(rewardToPool, null, rewardToPool, reward, txOutputBuffers, addressToScript(poolAddress));
 
   if (rpcData.default_witness_commitment) {
     createTransactionOutput(0, null, rewardToPool, reward, txOutputBuffers, Buffer.from(rpcData.default_witness_commitment, 'hex'));

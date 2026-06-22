@@ -6,6 +6,7 @@
   "gypfile": true,
   "files": [
     "bigint.js",
+    "bitcoin_utils.js",
     "binding.gyp",
     "index.js",
     "rtm.js",
@@ -40,7 +41,6 @@
   "dependencies": {
     "bech32": "2.0.0",
     "bindings": "1.5.0",
-    "bitcoinjs-lib": "6.1.7",
     "merkle-lib": "2.0.10",
     "sha3": "2.1.4",
     "varuint-bitcoin": "1.1.2"

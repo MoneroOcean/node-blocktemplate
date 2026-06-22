@@ -1,24 +1,18 @@
 module.exports = require('bindings')('blocktemplate.node');
 
 const SHA3    = require('sha3');
-const bitcoin = require('bitcoinjs-lib');
 const varuint = require('varuint-bitcoin');
 const crypto  = require('crypto');
 const fastMerkleRoot = require('merkle-lib/fastRoot');
 
 const { BASE_DIFF, BASE_RAVEN_DIFF, difficultyToFloat, parsePositiveBigInt } = require('./bigint');
+const bitcoinUtils = require('./bitcoin_utils');
 const rtm = require('./rtm');
 
 const MAX_TEMPLATE_TRANSACTIONS = 5000;
 
 function scriptCompile(addrHash) {
-  return bitcoin.script.compile([
-    bitcoin.opcodes.OP_DUP,
-    bitcoin.opcodes.OP_HASH160,
-    addrHash,
-    bitcoin.opcodes.OP_EQUALVERIFY,
-    bitcoin.opcodes.OP_CHECKSIG
-  ]);
+  return bitcoinUtils.p2pkhScript(addrHash);
 }
 
 function reverseBuffer(buff) {
@@ -71,9 +65,10 @@ module.exports.baseRavenDiff = function() {
 };
 
 module.exports.RavenBlockTemplate = function(rpcData, poolAddress) {
-  const poolAddrHash = bitcoin.address.fromBase58Check(poolAddress).hash;
+  const poolAddrHash = bitcoinUtils.base58AddressToHash160(poolAddress);
 
-  const txCoinbase = new bitcoin.Transaction();
+  const coinbaseOutputs = [];
+  let serializedBlockHeight;
   let bytesHeight;
   { // input for coinbase tx
     let blockHeightSerial = rpcData.height.toString(16).length % 2 === 0 ?
@@ -82,30 +77,29 @@ module.exports.RavenBlockTemplate = function(rpcData, poolAddress) {
     bytesHeight = Math.ceil((rpcData.height * 2).toString(2).length / 8);
     const lengthDiff  = blockHeightSerial.length/2 - bytesHeight;
     for (let i = 0; i < lengthDiff; i++) blockHeightSerial = `${blockHeightSerial  }00`;
-    const serializedBlockHeight = Buffer.concat([
+    serializedBlockHeight = Buffer.concat([
       Buffer.from(`0${  bytesHeight}`, 'hex'),
       reverseBuffer(Buffer.from(blockHeightSerial, 'hex')),
       Buffer.from('00', 'hex') // OP_0
     ]);
 
-    txCoinbase.addInput(
-      // will be used for our reserved_offset extra_nonce
-      Buffer.from('0000000000000000000000000000000000000000000000000000000000000000', 'hex'),
-      0xFFFFFFFF, 0xFFFFFFFF,
-      Buffer.concat([serializedBlockHeight, Buffer.alloc(17, 0xCC)]) // 17 bytes
-    );
-
-    txCoinbase.addOutput(scriptCompile(poolAddrHash), Math.floor(rpcData.coinbasevalue));
+    coinbaseOutputs.push({
+      value: Math.floor(rpcData.coinbasevalue),
+      script: scriptCompile(poolAddrHash)
+    });
 
     if (rpcData.CommunityAutonomousAddress && rpcData.CommunityAutonomousValue) {
-      txCoinbase.addOutput(
-        scriptCompile(bitcoin.address.fromBase58Check(rpcData.CommunityAutonomousAddress).hash),
-        Math.floor(rpcData.CommunityAutonomousValue)
-      );
+      coinbaseOutputs.push({
+        value: Math.floor(rpcData.CommunityAutonomousValue),
+        script: scriptCompile(bitcoinUtils.base58AddressToHash160(rpcData.CommunityAutonomousAddress))
+      });
     }
 
     if (rpcData.default_witness_commitment) {
-      txCoinbase.addOutput(Buffer.from(rpcData.default_witness_commitment, 'hex'), 0);
+      coinbaseOutputs.push({
+        value: 0,
+        script: Buffer.from(rpcData.default_witness_commitment, 'hex')
+      });
     }
   }
 
@@ -127,7 +121,19 @@ module.exports.RavenBlockTemplate = function(rpcData, poolAddress) {
     varuint.encode(rpcData.transactions.length + 1, Buffer.alloc(varuint.encodingLength(rpcData.transactions.length + 1)), 0)
   ]);
   const offset1 = blob.length;
-  blob = Buffer.concat([ blob, Buffer.from(txCoinbase.toHex(), 'hex') ]);
+  const txCoinbase = bitcoinUtils.serializeTransaction({
+    version: 1,
+    inputs: [{
+      // will be used for our reserved_offset extra_nonce
+      hash: Buffer.alloc(32, 0),
+      index: 0xffffffff,
+      sequence: 0xffffffff,
+      script: Buffer.concat([serializedBlockHeight, Buffer.alloc(17, 0xCC)]) // 17 bytes
+    }],
+    outputs: coinbaseOutputs,
+    locktime: 0
+  });
+  blob = Buffer.concat([ blob, txCoinbase ]);
 
   rpcData.transactions.forEach(function (value) {
     blob = Buffer.concat([ blob, Buffer.from(value.data, 'hex') ]);
@@ -197,8 +203,9 @@ function update_merkle_root_hash(offsetArg, payload, blob_in, blob_out, transact
         }
       }
     } else {
-      tx = bitcoin.Transaction.fromBuffer(blob_in.slice(offset), true, false);
-      offset += tx.byteLength();
+      const parsed = bitcoinUtils.readRawBitcoinTransaction(blob_in, offset);
+      tx = parsed.transaction;
+      offset = parsed.offset;
     }
     transactions.push(tx);
   }

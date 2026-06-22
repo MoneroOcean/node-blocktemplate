@@ -2,11 +2,12 @@
 
 const assert = require("node:assert/strict");
 const crypto = require("node:crypto");
+const fs = require("node:fs");
 const test = require("node:test");
 const blocktemplate = require("../build/Release/blocktemplate");
 const blocktemplateJs = require("../index.js");
+const bitcoinUtils = require("../bitcoin_utils.js");
 const rtm = require("../rtm.js");
-const bitcoin = require("bitcoinjs-lib");
 const varuint = require("varuint-bitcoin");
 
 const cases = [
@@ -399,6 +400,20 @@ function hash256_3(buffer) {
   return crypto.createHash("sha3-256").update(first).digest();
 }
 
+function readRavenTransactions(blob) {
+  let offset = 80 + 8 + 32;
+  const transactionCount = varuint.decode(blob, offset);
+  offset += varuint.decode.bytes;
+  const transactions = [];
+  for (let i = 0; i < transactionCount; i++) {
+    const parsed = bitcoinUtils.readRawBitcoinTransaction(blob, offset);
+    transactions.push(parsed.transaction);
+    offset = parsed.offset;
+  }
+  assert.equal(offset, blob.length);
+  return transactions;
+}
+
 function buildEmptyRtmSpecialTx(type, payload = "") {
   const txVersion = Buffer.alloc(4);
   txVersion.writeInt32LE(3 | (type << 16));
@@ -742,13 +757,86 @@ test("RavenBlockTemplate includes daemon-supplied CLORE community payout", () =>
     CommunityAutonomousValue: 1250000000
   }, poolAddress);
   const blob = Buffer.from(template.blocktemplate_blob, "hex");
-  let offset = 80 + 8 + 32;
-  const txCount = varuint.decode(blob, offset);
-  offset += varuint.decode.bytes;
-  const coinbase = bitcoin.Transaction.fromBuffer(blob.slice(offset), true, false);
+  const transactions = readRavenTransactions(blob);
 
-  assert.equal(txCount, 1);
-  assert.deepEqual(coinbase.outs.map((output) => output.value), [5000000000, 1250000000]);
+  assert.equal(transactions.length, 1);
+  assert.deepEqual(
+    transactions[0].outs.map((output) => Number(output.valueBuffer.readBigUInt64LE(0))),
+    [5000000000, 1250000000]
+  );
+});
+
+test("RavenBlockTemplate local serializer preserves BitcoinJS-era coinbase bytes", () => {
+  const poolAddress = "RUCyaEZxQu3Eure73XPQ57si813RYAMQKC";
+  const baseTemplate = {
+    height: 321,
+    bits: "1d00ffff",
+    curtime: 1710000000,
+    previousblockhash: "11".repeat(32),
+    version: 0x20000000,
+    coinbasevalue: 5000000000,
+    target: "00000000ffff0000000000000000000000000000000000000000000000000000",
+    transactions: []
+  };
+
+  const simple = blocktemplateJs.RavenBlockTemplate(baseTemplate, poolAddress);
+  assert.equal(simple.reserved_offset, 167);
+  assert.equal(simple.seed_hash, "00".repeat(32));
+  assert.equal(
+    simple.blocktemplate_blob,
+    "000000201111111111111111111111111111111111111111111111111111111111111111dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd8087ec65ffff001d41010000aaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb0101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff1502410100ccccccccccccccccccccccccccccccccccffffffff0100f2052a010000001976a914cf9e499affe93cb6ee344dd77c59e86ffb44814288ac00000000"
+  );
+
+  const withCommunity = blocktemplateJs.RavenBlockTemplate(Object.assign({}, baseTemplate, {
+    CommunityAutonomousAddress: poolAddress,
+    CommunityAutonomousValue: 1250000000,
+    default_witness_commitment: `6a24aa21a9ed${  "00".repeat(32)}`
+  }), poolAddress);
+  assert.equal(withCommunity.reserved_offset, 167);
+  assert.equal(
+    withCommunity.blocktemplate_blob,
+    "000000201111111111111111111111111111111111111111111111111111111111111111dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd8087ec65ffff001d41010000aaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb0101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff1502410100ccccccccccccccccccccccccccccccccccffffffff0300f2052a010000001976a914cf9e499affe93cb6ee344dd77c59e86ffb44814288ac807c814a000000001976a914cf9e499affe93cb6ee344dd77c59e86ffb44814288ac0000000000000000266a24aa21a9ed000000000000000000000000000000000000000000000000000000000000000000000000"
+  );
+});
+
+test("convertRavenBlob hashes raw transactions with uint64 values outside JS safe integer range", () => {
+  const tx = Buffer.from([
+    "01000000",
+    "01",
+    "00".repeat(32),
+    "ffffffff",
+    "00",
+    "ffffffff",
+    "01",
+    "ff".repeat(8),
+    "00",
+    "00000000"
+  ].join(""), "hex");
+  const header = Buffer.alloc(80, 0);
+  const blob = Buffer.concat([
+    header,
+    Buffer.alloc(8, 0),
+    Buffer.alloc(32, 0),
+    Buffer.from("01", "hex"),
+    tx
+  ]);
+  const expectedHeader = Buffer.from(header);
+  hash256(tx).copy(expectedHeader, 36);
+  const expectedBlockHash = Buffer.from(hash256(expectedHeader)).reverse();
+
+  assert.equal(blocktemplateJs.convertRavenBlob(blob).toString("hex"), expectedBlockHash.toString("hex"));
+});
+
+test("convertRavenBlob handles the SG Raven template that overflowed bitcoinjs-lib uint64 parsing", () => {
+  const blob = Buffer.from(
+    fs.readFileSync(`${__dirname}/fixtures/raven-sg-uint64-template.hex`, "utf8").trim(),
+    "hex"
+  );
+
+  assert.equal(
+    blocktemplateJs.convertRavenBlob(blob).toString("hex"),
+    "5ff9bca88c31bf520eeabdddcfd488bd65676aa3ca353137a93482bc8a24ff8c"
+  );
 });
 
 test("block template difficulty rejects invalid targets and uses exact scaled Raven/RTM arithmetic", () => {
