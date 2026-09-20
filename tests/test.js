@@ -10,6 +10,19 @@ const bitcoinUtils = require("../bitcoin_utils.js");
 const rtm = require("../rtm.js");
 const varuint = require("varuint-bitcoin");
 
+test("pearlSolutionId hashes bounded versioned semantic data", () => {
+  const solutionData = Buffer.from([1, 2, 3]);
+  const solutionId = blocktemplateJs.pearlSolutionId(solutionData);
+  assert.equal(solutionId.length, 32);
+  assert.equal(solutionId.toString("hex"), "dd1883edb5ed84bad427c59f3c68e2551211a7b1f9b68f38379993ee5cc6373b");
+  assert.deepEqual(blocktemplateJs.pearlSolutionId(solutionData), solutionId);
+  assert.notDeepEqual(blocktemplateJs.pearlSolutionId(Buffer.from([1, 2, 4])), solutionId);
+  assert.throws(() => blocktemplateJs.pearlSolutionId("010203"), /Buffer/);
+  assert.throws(() => blocktemplateJs.pearlSolutionId(Buffer.alloc(0)), /invalid or unsupported/);
+  assert.throws(() => blocktemplateJs.pearlSolutionId(Buffer.from([2])), /invalid or unsupported/);
+  assert.throws(() => blocktemplateJs.pearlSolutionId(Buffer.alloc(16 * 1024 + 1, 1)), /invalid or unsupported/);
+});
+
 const cases = [
   {
     name: "arq",

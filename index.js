@@ -10,6 +10,8 @@ const bitcoinUtils = require('./bitcoin_utils');
 const rtm = require('./rtm');
 
 const MAX_TEMPLATE_TRANSACTIONS = 5000;
+const MAX_PEARL_SOLUTION_DATA_BYTES = 16 * 1024;
+const PEARL_SOLUTION_ID_DOMAIN = Buffer.from("PearlHash V3 semantic solution id v1\0", "ascii");
 
 function scriptCompile(addrHash) {
   return bitcoinUtils.p2pkhScript(addrHash);
@@ -221,6 +223,17 @@ module.exports.blockHashBuff = function(blobBuffer) {
 
 module.exports.blockHashBuff3 = function(blobBuffer) {
   return reverseBuffer(hash256_3(blobBuffer));
+};
+
+module.exports.pearlSolutionId = function(solutionData) {
+  if (!Buffer.isBuffer(solutionData)) throw new TypeError("Pearl solution data must be a Buffer");
+  if (solutionData.length === 0 || solutionData.length > MAX_PEARL_SOLUTION_DATA_BYTES || solutionData[0] !== 1) {
+    throw new RangeError("Pearl solution data is invalid or unsupported");
+  }
+  return crypto.createHash("sha256")
+    .update(PEARL_SOLUTION_ID_DOMAIN)
+    .update(solutionData)
+    .digest();
 };
 
 module.exports.convertRavenBlob = function(blobBuffer) {

@@ -94,6 +94,7 @@ Exact, vector-backed usage examples live in [`tests/test.js`](tests/test.js).
 | `RavenBlockTemplate(rpcData, poolAddress)` | `object` | Builds a Raven/KawPow-oriented blocktemplate payload. |
 | `blockHashBuff(headerBuffer)` | `Buffer` | Double-SHA256 hash helper with pool-oriented byte order. |
 | `blockHashBuff3(headerBuffer)` | `Buffer` | Double-SHA3-256 variant used by KCN helpers. |
+| `pearlSolutionId(solutionData)` | `Buffer` | Returns the domain-separated 32-byte SHA-256 identity for bounded, versioned Pearl semantic data prepared by `node-powhash`. |
 | `convertRavenBlob(blobBuffer)` | `Buffer` | Returns the hashable Raven header. |
 | `constructNewRavenBlob(templateBuffer, nonceBuffer, mixHashBuffer)` | `Buffer` | Updates a Raven template with nonce and mix hash. |
 | `constructNewDeroBlob(templateBuffer, nonceBuffer)` | `Buffer` | Inserts the Dero nonce into the expected position. |
