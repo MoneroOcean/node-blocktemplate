@@ -23,6 +23,38 @@ test("pearlSolutionId hashes bounded versioned semantic data", () => {
   assert.throws(() => blocktemplateJs.pearlSolutionId(Buffer.alloc(16 * 1024 + 1, 1)), /invalid or unsupported/);
 });
 
+test("derivePearlWorkerHeader patches the coinbase byte and folds a left-root Merkle branch", () => {
+  const baseHeader = Buffer.alloc(76, 0xa5);
+  const coinbase = Buffer.from([...Array(24)].map((_, index) => (index * 17 + 3) & 0xff));
+  const branch = Buffer.concat([Buffer.alloc(32, 0x11), Buffer.alloc(32, 0x22)]);
+  const result = blocktemplateJs.derivePearlWorkerHeader(baseHeader, coinbase, 5, branch, 0x7b);
+
+  assert.notStrictEqual(result, baseHeader);
+  assert.deepEqual(baseHeader, Buffer.alloc(76, 0xa5));
+  assert.deepEqual(coinbase, Buffer.from([...Array(24)].map((_, index) => (index * 17 + 3) & 0xff)));
+  assert.equal(result.subarray(0, 36).every((byte) => byte === 0xa5), true);
+  assert.equal(result.subarray(36, 68).toString("hex"), "840112abd66c030cda056cb6d0030df0263e1774c2682bc8e6c99400cd5c396b");
+  assert.equal(result.subarray(68).every((byte) => byte === 0xa5), true);
+});
+
+test("derivePearlWorkerHeader rejects malformed inputs", () => {
+  const header = Buffer.alloc(76);
+  const coinbase = Buffer.alloc(1);
+  const branch = Buffer.alloc(0);
+  const derive = blocktemplateJs.derivePearlWorkerHeader;
+
+  assert.throws(() => derive("header", coinbase, 0, branch, 0), TypeError);
+  assert.throws(() => derive(Buffer.alloc(75), coinbase, 0, branch, 0), RangeError);
+  assert.throws(() => derive(header, "coinbase", 0, branch, 0), TypeError);
+  assert.throws(() => derive(header, Buffer.alloc(0), 0, branch, 0), RangeError);
+  assert.throws(() => derive(header, Buffer.alloc(16 * 1024 + 1), 0, branch, 0), RangeError);
+  assert.throws(() => derive(header, coinbase, 1, branch, 0), RangeError);
+  assert.throws(() => derive(header, coinbase, 0, "branch", 0), TypeError);
+  assert.throws(() => derive(header, coinbase, 0, Buffer.alloc(31), 0), RangeError);
+  assert.throws(() => derive(header, coinbase, 0, Buffer.alloc(33 * 32), 0), RangeError);
+  assert.throws(() => derive(header, coinbase, 0, branch, 256), RangeError);
+});
+
 const cases = [
   {
     name: "arq",

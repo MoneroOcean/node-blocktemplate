@@ -236,6 +236,33 @@ module.exports.pearlSolutionId = function(solutionData) {
     .digest();
 };
 
+module.exports.derivePearlWorkerHeader = function(baseHeader, coinbase, coinbaseOffset, merkleBranch, workerId) {
+  if (!Buffer.isBuffer(baseHeader)) throw new TypeError("Pearl header must be a Buffer");
+  if (baseHeader.length !== 76) throw new RangeError("Pearl header must be 76 bytes");
+  if (!Buffer.isBuffer(coinbase)) throw new TypeError("Pearl coinbase must be a Buffer");
+  if (coinbase.length === 0 || coinbase.length > 16 * 1024) throw new RangeError("Pearl coinbase size is invalid");
+  if (!Number.isSafeInteger(coinbaseOffset) || coinbaseOffset < 0 || coinbaseOffset >= coinbase.length) {
+    throw new RangeError("Pearl coinbase worker offset is out of bounds");
+  }
+  if (!Buffer.isBuffer(merkleBranch)) throw new TypeError("Pearl Merkle branch must be a Buffer");
+  if (merkleBranch.length > 32 * 32 || merkleBranch.length % 32 !== 0) {
+    throw new RangeError("Pearl Merkle branch must contain at most 32 hashes");
+  }
+  if (!Number.isInteger(workerId) || workerId < 0 || workerId > 0xff) {
+    throw new RangeError("Pearl worker ID must be an unsigned byte");
+  }
+
+  const header = Buffer.from(baseHeader);
+  const workerCoinbase = Buffer.from(coinbase);
+  workerCoinbase[coinbaseOffset] = workerId;
+  let root = hash256(workerCoinbase);
+  for (let offset = 0; offset < merkleBranch.length; offset += 32) {
+    root = hash256(Buffer.concat([root, merkleBranch.subarray(offset, offset + 32)]));
+  }
+  root.copy(header, 36);
+  return header;
+};
+
 module.exports.convertRavenBlob = function(blobBuffer) {
   const header = blobBuffer.slice(0, 80);
   update_merkle_root_hash(80 + 8 + 32, false, blobBuffer, header, transaction_hash);
